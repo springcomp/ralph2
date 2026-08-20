@@ -58,6 +58,12 @@ export interface WorkflowPlan {
     seedPrdFromSource: boolean;
     completeWhenSourceExhausted: boolean;
     nextTask?: string;
+    producer?: StagePlan;
+    completeWhen?: {
+      kind: string;
+      path?: string;
+      check?: StagePlan;
+    };
   };
   statusFormat: string;
 }
@@ -141,6 +147,22 @@ export function compileWorkflow(
         completeWhenSourceExhausted:
           document.continuation.completeWhenSourceExhausted === true,
         nextTask: text(document.continuation.nextTask) || undefined,
+        producer: document.continuation.producer
+          ? stage("producer", document.continuation.producer, workspace)
+          : undefined,
+        completeWhen: document.continuation.completeWhen
+          ? {
+              kind: text(document.continuation.completeWhen.kind),
+              path: path(workspace, document.continuation.completeWhen.path),
+              check: document.continuation.completeWhen.check
+                ? stage(
+                    "completion-check",
+                    document.continuation.completeWhen.check,
+                    workspace,
+                  )
+                : undefined,
+            }
+          : undefined,
       }
     : undefined;
   return {
