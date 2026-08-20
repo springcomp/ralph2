@@ -1,0 +1,5 @@
+*.log
+*-state.lock
+
+coverage.json
+progress.txt
