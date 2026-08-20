@@ -404,6 +404,8 @@ export class WorkflowEngine {
       } catch (error) {
         return this.result("blocked", this.message(error), iteration, []);
       }
+      // A failure task was scheduled — continue the loop so it gets processed.
+      return null;
     }
     if (stage.failurePolicy === "continue") {
       await emit({

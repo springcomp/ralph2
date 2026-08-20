@@ -191,7 +191,9 @@ describe("WorkflowEngine", () => {
     );
   });
 
-  it("handles preAgent stage failure with stop policy", async () => {
+  it("schedules failure task on preAgent stage failure and continues loop", async () => {
+    // When a failureTask is configured, scheduling it must let the loop
+    // continue regardless of failurePolicy so the scheduled task is processed.
     await writeFile(prdPath, "- [ ] TASK-001 - Initial task\n", "utf8");
     const runner = new FakeProcessRunner([
       { exitCode: 1, signal: null, timedOut: false, cancelled: false },
@@ -211,11 +213,34 @@ describe("WorkflowEngine", () => {
     const engine = new WorkflowEngine(runner);
     const result = await engine.run(plan);
 
-    expect(result.status).toBe("processFailure");
-    expect(result.exitCode).toBe(WorkflowExitCodes.ProcessFailure);
+    // Loop must NOT stop with processFailure — it continues until limit.
+    expect(result.status).not.toBe("processFailure");
 
     const prdContent = await readFile(prdPath, "utf8");
     expect(prdContent).toContain("FIX-001 - Pre-check failed");
+  });
+
+  it("stops with processFailure on preAgent stage failure with stop policy and no failureTask", async () => {
+    await writeFile(prdPath, "- [ ] TASK-001 - Initial task\n", "utf8");
+    const runner = new FakeProcessRunner([
+      { exitCode: 1, signal: null, timedOut: false, cancelled: false },
+    ]);
+
+    const plan = createPlan({
+      preAgent: [
+        createStagePlan({
+          name: "pre-check",
+          executable: "check",
+          failurePolicy: "stop",
+        }),
+      ],
+    });
+
+    const engine = new WorkflowEngine(runner);
+    const result = await engine.run(plan);
+
+    expect(result.status).toBe("processFailure");
+    expect(result.exitCode).toBe(WorkflowExitCodes.ProcessFailure);
   });
 
   it("handles preAgent stage completing and emptying PRD", async () => {
