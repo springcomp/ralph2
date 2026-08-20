@@ -5,6 +5,10 @@ import {
   parseTimeout,
   validateWorkflow,
 } from "./validator.js";
+import {
+  defaultExtensionRegistry,
+  type ExtensionRegistry,
+} from "../extensions/registry.js";
 
 export interface CompileOptions {
   workingDirectory?: string;
@@ -28,6 +32,7 @@ export interface StagePlan {
   timeoutMs: number;
   successExitCodes: number[];
   outputPath?: string;
+  failureAction?: string;
   failureTask?: string;
   failurePolicy: "stop" | "continue";
 }
@@ -108,6 +113,7 @@ function stage(name: string, dto: CommandDto, workspace: string): StagePlan {
         ? [...dto.successExitCodes].map(Number)
         : [0],
     outputPath: path(workspace, dto.output?.combined),
+    failureAction: text(dto.onFailure?.action) || undefined,
     failureTask: text(dto.onFailure?.task) || undefined,
     failurePolicy: dto.failurePolicy === "continue" ? "continue" : "stop",
   };
@@ -116,8 +122,9 @@ export function compileWorkflow(
   document: V1WorkflowDocument,
   configDirectory: string,
   options: CompileOptions = {},
+  extensions: ExtensionRegistry = defaultExtensionRegistry,
 ): WorkflowPlan {
-  const diagnostics = validateWorkflow(document);
+  const diagnostics = validateWorkflow(document, extensions);
   if (diagnostics.length) throw new WorkflowCompileError(diagnostics);
   const workspace = normalize(
     resolve(

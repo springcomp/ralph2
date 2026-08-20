@@ -1,5 +1,9 @@
 import { parse } from "yaml";
 import { PlaceholderRegistry } from "../core/placeholders.js";
+import {
+  defaultExtensionRegistry,
+  type ExtensionRegistry,
+} from "../extensions/registry.js";
 import type { CommandDto, V1WorkflowDocument } from "./schema-v1.js";
 
 export interface Diagnostic {
@@ -25,7 +29,12 @@ function placeholders(path: string, values: unknown[], out: Diagnostic[]) {
         });
   });
 }
-function command(path: string, value: unknown, out: Diagnostic[]) {
+function command(
+  path: string,
+  value: unknown,
+  out: Diagnostic[],
+  extensions: ExtensionRegistry,
+) {
   if (!value || typeof value !== "object") {
     out.push({ path, message: "must be an object" });
     return;
@@ -97,10 +106,10 @@ function command(path: string, value: unknown, out: Diagnostic[]) {
     else placeholders(`${path}.environment[${i}].value`, [x.value], out);
   }
   if (c.onFailure) {
-    if (c.onFailure.action !== "scheduleTask")
+    if (!nonempty(c.onFailure.action) || !extensions.action(c.onFailure.action))
       out.push({
         path: `${path}.onFailure.action`,
-        message: "must be scheduleTask",
+        message: "must name a registered action",
       });
     if (!nonempty(c.onFailure.task))
       out.push({ path: `${path}.onFailure.task`, message: "is required" });
@@ -118,7 +127,10 @@ export function parseWorkflowYaml(text: string): V1WorkflowDocument {
     ]);
   }
 }
-export function validateWorkflow(document: V1WorkflowDocument): Diagnostic[] {
+export function validateWorkflow(
+  document: V1WorkflowDocument,
+  extensions: ExtensionRegistry = defaultExtensionRegistry,
+): Diagnostic[] {
   const d: Diagnostic[] = [];
   if (document.schemaVersion !== 1)
     d.push({ path: "schemaVersion", message: "must be 1" });
@@ -152,12 +164,13 @@ export function validateWorkflow(document: V1WorkflowDocument): Diagnostic[] {
     d.push({ path: "harnesses", message: "must contain at least one harness" });
   else
     for (const [name, c] of Object.entries(document.harnesses))
-      command(`harnesses.${name}`, c, d);
+      command(`harnesses.${name}`, c, d, extensions);
   for (const [key, list] of [
     ["preAgent", document.preAgent],
     ["postAgent", document.postAgent],
   ] as const)
-    for (const [i, c] of (list ?? []).entries()) command(`${key}[${i}]`, c, d);
+    for (const [i, c] of (list ?? []).entries())
+      command(`${key}[${i}]`, c, d, extensions);
   const cont = document.continuation;
   if (cont) {
     if (!nonempty(cont.kind))
@@ -172,7 +185,7 @@ export function validateWorkflow(document: V1WorkflowDocument): Diagnostic[] {
     if (cont.kind === "generatedGoal") {
       if (!cont.producer)
         d.push({ path: "continuation.producer", message: "is required" });
-      else command("continuation.producer", cont.producer, d);
+      else command("continuation.producer", cont.producer, d, extensions);
       if (!cont.completeWhen)
         d.push({ path: "continuation.completeWhen", message: "is required" });
       if (!nonempty(cont.nextTask))

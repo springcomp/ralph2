@@ -63,38 +63,71 @@ describe("CLI Application", () => {
     process.exitCode = undefined;
   });
 
-  describe("show command", () => {
-    it("lists available templates with --templates", async () => {
-      const program = createProgram();
-      await program.parseAsync(["node", "ralph", "show", "--templates"]);
-      expect(consoleLogSpy).toHaveBeenCalledWith("goal\nblueprint");
-    });
+  describe("introspection commands", () => {
+    it.each([["templates"], ["templates", "show"]])(
+      "lists available templates with %s",
+      async (...args) => {
+        await createProgram().parseAsync(["node", "ralph", ...args]);
+        expect(consoleLogSpy).toHaveBeenCalledWith("goal\nblueprint");
+      },
+    );
 
-    it("lists supported variables with --variables or --vars", async () => {
-      const program = createProgram();
-      await program.parseAsync(["node", "ralph", "show", "--variables"]);
+    it.each([
+      ["variables"],
+      ["variables", "show"],
+      ["vars"],
+      ["vars", "show"],
+    ])("lists supported variables with %s", async (...args) => {
+      await createProgram().parseAsync(["node", "ralph", ...args]);
       expect(consoleLogSpy).toHaveBeenCalledWith(
         expect.stringContaining("MODEL"),
       );
+    });
 
-      consoleLogSpy.mockClear();
-      await program.parseAsync(["node", "ralph", "show", "--vars"]);
+    it.each([["actions"], ["actions", "show"]])(
+      "lists registered actions with %s",
+      async (...args) => {
+        await createProgram().parseAsync(["node", "ralph", ...args]);
+        expect(consoleLogSpy).toHaveBeenCalledWith("scheduleTask");
+      },
+    );
+
+    it.each([["predicates"], ["predicates", "show"]])(
+      "lists registered predicates with %s",
+      async (...args) => {
+        await createProgram().parseAsync(["node", "ralph", ...args]);
+        expect(consoleLogSpy).toHaveBeenCalledWith(
+          "fileExists\nfileMissing\nacceptedExitCode",
+        );
+      },
+    );
+
+    it("shows action documentation with explain", async () => {
+      const args = ["explain", "action", "scheduleTask"];
+      await createProgram().parseAsync(["node", "ralph", ...args]);
       expect(consoleLogSpy).toHaveBeenCalledWith(
-        expect.stringContaining("TASK"),
+        expect.stringContaining("action: scheduleTask"),
+      );
+      expect(consoleLogSpy).toHaveBeenCalledWith(
+        expect.stringContaining("task"),
       );
     });
 
-    it("shows help when no options are provided to show", async () => {
-      const program = createProgram();
-      const showCommand = program.commands.find((c) => c.name() === "show");
-      expect(showCommand).toBeDefined();
-      if (showCommand) {
-        const helpSpy = vi
-          .spyOn(showCommand, "help")
-          .mockImplementation(() => undefined as never);
-        await program.parseAsync(["node", "ralph", "show"]);
-        expect(helpSpy).toHaveBeenCalled();
-      }
+    it("shows predicate documentation with explain", async () => {
+      const args = ["explain", "predicate", "fileMissing"];
+      await createProgram().parseAsync(["node", "ralph", ...args]);
+      expect(consoleLogSpy).toHaveBeenCalledWith(
+        expect.stringContaining("predicate: fileMissing"),
+      );
+      expect(consoleLogSpy).toHaveBeenCalledWith(
+        expect.stringContaining("path"),
+      );
+    });
+
+    it("rejects an unknown promoted subcommand", async () => {
+      await createProgram().parseAsync(["node", "ralph", "templates", "list"]);
+      expect(process.exitCode).toBe(WorkflowExitCodes.InvalidConfiguration);
+      expect(consoleErrorSpy).toHaveBeenCalledWith("Unknown subcommand 'list'.");
     });
   });
 
@@ -235,7 +268,7 @@ describe("CLI Application", () => {
     });
   });
 
-  describe("validate command", () => {
+  describe("schema validation command", () => {
     it("validates valid workflow yaml successfully", async () => {
       const configPath = join(tmpDir, "ralph.yaml");
       const yamlContent = `
@@ -258,7 +291,7 @@ harnesses:
       await program.parseAsync([
         "node",
         "ralph",
-        "validate",
+        "schema",
         "--config",
         configPath,
       ]);
@@ -275,7 +308,7 @@ harnesses:
       await program.parseAsync([
         "node",
         "ralph",
-        "validate",
+        "schema",
         "--config",
         configPath,
       ]);
@@ -283,6 +316,16 @@ harnesses:
       expect(process.exitCode).toBe(WorkflowExitCodes.InvalidConfiguration);
       expect(consoleErrorSpy).toHaveBeenCalled();
     });
+
+    it.each([["schema"], ["schema", "show"]])(
+      "shows the workflow schema with %s",
+      async (...args) => {
+        await createProgram().parseAsync(["node", "ralph", ...args]);
+        expect(consoleLogSpy).toHaveBeenCalledWith(
+          expect.stringContaining("$schema:"),
+        );
+      },
+    );
   });
 
   describe("run command", () => {

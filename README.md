@@ -60,10 +60,15 @@ ralph run --config ~/my/.agentic/ralph.yaml
 ```text
 Usage:
   ralph run      --config <path> [--model <model>] [--agent <agent>] [--harness <name>] [--max-iterations <n>] [--working-directory <path>] [--plain]
-  ralph validate --config <path> [--model <model>] [--agent <agent>] [--harness <name>] [--max-iterations <n>] [--working-directory <path>]
+  ralph schema   --config <path>
   ralph init     --template <goal|blueprint> [--working-directory <path>] [--force]
-  ralph show     --variables|--vars
-  ralph show     --templates
+  ralph templates [show]
+  ralph variables [show]   (alias: vars)
+  ralph actions [show]
+  ralph predicates [show]
+  ralph schema [show]
+  ralph explain action <name>
+  ralph explain predicate <name>
 ```
 
 ### Exit Codes

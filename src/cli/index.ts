@@ -4,6 +4,7 @@ import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { Command } from "commander";
 import { WorkflowCompileError, compileWorkflow } from "../config/compiler.js";
+import { workflowSchemaYaml } from "../config/schema.js";
 import {
   WorkflowValidationError,
   parseWorkflowYaml,
@@ -11,7 +12,26 @@ import {
 import { WorkflowEngine } from "../core/engine.js";
 import { WorkflowExitCodes } from "../core/exit-codes.js";
 import { RealProcessRunner } from "../core/process-runner.js";
+import {
+  type ExtensionRegistration,
+  type ActionRegistration,
+  type PredicateRegistration,
+  type ExtensionRegistry,
+  defaultExtensionRegistry,
+} from "../extensions/registry.js";
 import { getTemplate, templates } from "../templates/template-registry.js";
+
+export {
+  createExtensionRegistry,
+  defaultExtensionRegistry,
+} from "../extensions/registry.js";
+export type {
+  ExtensionProperty,
+  ActionRegistration,
+  PredicateRegistration,
+  ExtensionRegistration,
+  ExtensionRegistry,
+} from "../extensions/registry.js";
 
 interface CliOptions {
   config: string;
@@ -23,10 +43,14 @@ interface CliOptions {
   plain?: boolean;
 }
 
-async function readConfig(path: string, options: CliOptions) {
+async function readConfig(
+  path: string,
+  options: CliOptions,
+  extensions: ExtensionRegistry = defaultExtensionRegistry,
+) {
   const text = await readFile(path, "utf8");
   const document = parseWorkflowYaml(text);
-  return compileWorkflow(document, dirname(resolve(path)), options);
+  return compileWorkflow(document, dirname(resolve(path)), options, extensions);
 }
 
 function fail(error: unknown): never {
@@ -35,7 +59,9 @@ function fail(error: unknown): never {
   throw error;
 }
 
-export function createProgram(): Command {
+export function createProgram(
+  extensions: ExtensionRegistry = defaultExtensionRegistry,
+): Command {
   const program = new Command()
     .name("ralph")
     .description("A deterministic AI coding loop orchestrator.");
@@ -54,7 +80,7 @@ export function createProgram(): Command {
   addWorkflowOptions(program.command("run")).action(
     async (options: CliOptions) => {
       try {
-        const plan = await readConfig(options.config, options);
+        const plan = await readConfig(options.config, options, extensions);
         const engine = new WorkflowEngine(
           new RealProcessRunner(),
           undefined,
@@ -67,6 +93,7 @@ export function createProgram(): Command {
               ? undefined
               : (event) => console.error(`[${event.type}] ${event.message}`),
           },
+          extensions,
         );
         const result = await engine.run(plan, options);
         if (result.message) {
@@ -88,11 +115,24 @@ export function createProgram(): Command {
     },
   );
 
-  addWorkflowOptions(program.command("validate")).action(
-    async (options: CliOptions) => {
+  const schema = program
+    .command("schema")
+    .argument("[show]", "show the workflow schema")
+    .option("--config <path>", "workflow YAML path");
+  schema.action(
+    async (show: string | undefined, options: CliOptions) => {
       try {
-        await readConfig(options.config, options);
-        console.log("Configuration is valid.");
+        if (show && show !== "show") {
+          console.error(`Unknown subcommand '${show}'.`);
+          process.exitCode = WorkflowExitCodes.InvalidConfiguration;
+          return;
+        }
+        if (options.config) {
+          await readConfig(options.config, options, extensions);
+          console.log("Configuration is valid.");
+        } else {
+          console.log(workflowSchemaYaml(extensions));
+        }
         process.exitCode = WorkflowExitCodes.Complete;
       } catch (error) {
         process.exitCode = WorkflowExitCodes.InvalidConfiguration;
@@ -143,31 +183,87 @@ export function createProgram(): Command {
       },
     );
 
-  const show = program.command("show");
-  show
-    .option("--variables")
-    .option("--vars")
-    .option("--templates")
-    .action(
-      (options: {
-        variables?: boolean;
-        vars?: boolean;
-        templates?: boolean;
-      }) => {
-        if (options.templates) {
-          console.log(Object.keys(templates).join("\n"));
+  const addShowCommand = (
+    name: string,
+    output: () => void,
+    aliases: string[] = [],
+  ) => {
+    const command = program
+      .command(name)
+      .argument("[show]", "show this information")
+      .action((show?: string) => {
+        if (show && show !== "show") {
+          console.error(`Unknown subcommand '${show}'.`);
+          process.exitCode = WorkflowExitCodes.InvalidConfiguration;
           return;
         }
-        if (options.variables || options.vars) {
-          console.log(
-            "MODEL\nAGENT\nTYP\nNUM\nTASK\nTASK_LINE\nPROMPT\nPRD\nPROGRESS\nITERATION\nITERATION:000\nWORKSPACE",
-          );
-          return;
-        }
-        show.help();
-      },
+        output();
+      });
+    for (const alias of aliases) command.alias(alias);
+    return command;
+  };
+
+  addShowCommand("templates", () => {
+    console.log(Object.keys(templates).join("\n"));
+  });
+  addShowCommand(
+    "variables",
+    () => {
+      console.log(
+        "MODEL\nAGENT\nTYP\nNUM\nTASK\nTASK_LINE\nPROMPT\nPRD\nPROGRESS\nITERATION\nITERATION:000\nWORKSPACE",
+      );
+    },
+    ["vars"],
+  );
+  addShowCommand("actions", () => {
+    console.log(
+      extensions.actions.map((x) => x.name).join("\n"),
     );
+  });
+  addShowCommand("predicates", () => {
+    console.log(
+      extensions.predicates.map((x) => x.name).join("\n"),
+    );
+  });
+
+  const explain = program.command("explain");
+  const addExtensionCommand = (kind: "action" | "predicate") => {
+    const command = explain
+      .command(kind)
+      .argument("<name>")
+      .action((name: string) => {
+        const registration =
+          kind === "action"
+            ? extensions.action(name)
+            : extensions.predicate(name);
+        if (!registration) {
+          console.error(`Unknown ${kind} '${name}'.`);
+          process.exitCode = WorkflowExitCodes.InvalidConfiguration;
+          return;
+        }
+        console.log(formatExtensionHelp(kind, registration));
+      });
+    return command;
+  };
+
+  addExtensionCommand("action");
+  addExtensionCommand("predicate");
   return program;
+}
+
+function formatExtensionHelp(
+  kind: string,
+  registration: ExtensionRegistration,
+): string {
+  const properties = registration.properties.length
+    ? registration.properties
+        .map(
+          (property) =>
+            `  ${property.name}${property.required ? " (required)" : ""}: ${property.description}`,
+        )
+        .join("\n")
+    : "  (none)";
+  return `${kind}: ${registration.name}\n${registration.description}\nproperties:\n${properties}`;
 }
 
 if (

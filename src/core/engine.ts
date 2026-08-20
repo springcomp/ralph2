@@ -1,4 +1,4 @@
-import { access, mkdir, writeFile } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import type { StagePlan, WorkflowPlan } from "../config/compiler.js";
 import { WorkflowExitCodes } from "./exit-codes.js";
@@ -12,6 +12,10 @@ import {
   PlaceholderExpander,
 } from "./placeholders.js";
 import type { ProcessResult, ProcessRunner } from "./process-runner.js";
+import {
+  defaultExtensionRegistry,
+  type ExtensionRegistry,
+} from "../extensions/registry.js";
 
 export type WorkflowStatus =
   | "complete"
@@ -59,6 +63,7 @@ export class WorkflowEngine {
     private readonly source = new MarkdownTaskSource(),
     private readonly expander = new PlaceholderExpander(),
     private readonly callbacks: WorkflowEngineCallbacks = {},
+    private readonly extensions: ExtensionRegistry = defaultExtensionRegistry,
   ) {}
 
   async run(
@@ -389,17 +394,26 @@ export class WorkflowEngine {
     iteration: number,
     emit: (e: WorkflowEvent) => Promise<void>,
   ): Promise<WorkflowRunResult | null> {
-    if (stage.failureTask) {
-      try {
-        await this.source.scheduleTask(
-          plan.tasks.prd,
-          this.expander.expand(stage.failureTask, values),
-        );
-        await emit({
-          type: "fix.scheduled",
+    if (stage.failureAction || stage.failureTask) {
+      const actionName = stage.failureAction ?? "scheduleTask";
+      const action = this.extensions.action(actionName);
+      if (!action)
+        return this.result(
+          "blocked",
+          `Action '${actionName}' is not registered.`,
           iteration,
-          stage: stage.name,
-          message: "Failure task scheduled.",
+          [],
+        );
+      try {
+        await action.callback({
+          source: this.source,
+          prdPath: plan.tasks.prd,
+          stage,
+          values,
+          expand: (value) => this.expander.expand(value, values),
+          result,
+          iteration,
+          emit,
         });
       } catch (error) {
         return this.result("blocked", this.message(error), iteration, []);
@@ -531,24 +545,21 @@ export class WorkflowEngine {
     );
     if (!produced.success)
       return this.failure(produced.result, iteration, events);
-    let complete = false;
-    if (
-      c.completeWhen.kind === "fileExists" ||
-      c.completeWhen.kind === "fileMissing"
-    ) {
-      try {
-        await access(this.expander.expand(c.completeWhen.path ?? "", values));
-        complete = c.completeWhen.kind === "fileExists";
-      } catch {
-        complete = c.completeWhen.kind === "fileMissing";
-      }
-    } else if (
-      c.completeWhen.kind === "acceptedExitCode" &&
-      c.completeWhen.check
-    )
-      complete = (
-        await this.runStage(
-          c.completeWhen.check,
+    const predicate = this.extensions.predicate(c.completeWhen.kind);
+    if (!predicate)
+      return this.result(
+        "blocked",
+        `Predicate '${c.completeWhen.kind}' is not registered.`,
+        iteration,
+        events,
+      );
+    const complete = await predicate.callback({
+      path: c.completeWhen.path,
+      check: c.completeWhen.check,
+      expand: (value) => this.expander.expand(value, values),
+      runStage: (stage) =>
+        this.runStage(
+          stage,
           values,
           plan.workspace,
           iteration,
@@ -557,8 +568,8 @@ export class WorkflowEngine {
             await this.callbacks.onEvent?.(e);
           },
           options.signal,
-        )
-      ).success;
+        ),
+    });
     if (complete)
       return this.result(
         "complete",

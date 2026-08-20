@@ -219,14 +219,19 @@ Implemented using Commander.js:
 ralph run --config <path> [--model <model>] [--agent <agent>] [--harness <name>] [--max-iterations <n>] [--working-directory <path>] [--plain]
 
 # Validate workflow configuration
-ralph validate --config <path> [--model <model>] [--agent <agent>] [--harness <name>] [--max-iterations <n>] [--working-directory <path>]
+ralph schema --config <path>
 
 # Initialize template scaffold
 ralph init --template <goal|blueprint> [--working-directory <path>] [--force]
 
 # Show introspection info
-ralph show --variables
-ralph show --templates
+ralph templates [show]
+ralph variables [show]   # alias: vars
+ralph actions [show]
+ralph predicates [show]
+ralph schema [show]
+ralph explain action <name>
+ralph explain predicate <name>
 ```
 
 ---
