@@ -12,6 +12,6 @@
     "lineEnding": "lf"
   },
   "files": {
-    "ignore": ["dist", "coverage", "node_modules", ".agentic"]
+    "ignore": ["dist", "bootstrap", "coverage", "node_modules", ".agentic"]
   }
 }

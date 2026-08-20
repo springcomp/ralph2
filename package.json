@@ -4,7 +4,15 @@
   "description": "A deterministic AI coding loop orchestrator.",
   "type": "module",
   "bin": {
-    "ralph": "dist/cli/index.js"
+    "ralph": "bootstrap/ralph.js"
+  },
+  "main": "dist/cli/index.js",
+  "types": "dist/cli/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/cli/index.d.ts",
+      "import": "./dist/cli/index.js"
+    }
   },
   "files": ["dist", "bootstrap", "samples"],
   "engines": {

@@ -78,6 +78,22 @@ describe("MarkdownTaskSource", () => {
       "- [x] T-1 - Done\n- [ ] FIX-2 - New\n- [ ] T-3 - Later\n",
     );
   });
+
+  it("schedules at the end of file when no unchecked tasks exist and validates task line", async () => {
+    const { prdPath } = await files("- [x] T-1 - Done");
+    const source = new MarkdownTaskSource();
+    await source.scheduleTask(prdPath, "- [ ] T-2 - New");
+    expect(await readFile(prdPath, "utf8")).toBe(
+      "- [x] T-1 - Done\n- [ ] T-2 - New",
+    );
+
+    await expect(source.scheduleTask(prdPath, "invalid task")).rejects.toThrow(
+      MarkdownTaskError,
+    );
+    await expect(
+      source.scheduleTask(prdPath, "- [x] T-3 - Already checked"),
+    ).rejects.toThrow(MarkdownTaskError);
+  });
   it("seeds first blueprint task, checks source, and handles missing/exhausted source", async () => {
     const { root, prdPath } = await files("# PRD\n");
     const blueprint = join(root, "BLUEPRINT.md");
