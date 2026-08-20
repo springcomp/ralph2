@@ -2,12 +2,15 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import type { StagePlan, WorkflowPlan } from "../config/compiler.js";
-import { WorkflowEngine, type WorkflowEvent } from "./engine.js";
-import { WorkflowExitCodes } from "./exit-codes.js";
-import { FakeProcessRunner } from "./fake-process-runner.js";
-import { WorkspaceLock } from "./locks.js";
-import type { ProcessRequest, ProcessResult } from "./process-runner.js";
+import type { StagePlan, WorkflowPlan } from "../../src/config/compiler.js";
+import { WorkflowEngine, type WorkflowEvent } from "../../src/core/engine.js";
+import { WorkflowExitCodes } from "../../src/core/exit-codes.js";
+import { FakeProcessRunner } from "../../src/core/fake-process-runner.js";
+import { WorkspaceLock } from "../../src/core/locks.js";
+import type {
+  ProcessRequest,
+  ProcessResult,
+} from "../../src/core/process-runner.js";
 
 const createStagePlan = (overrides: Partial<StagePlan> = {}): StagePlan => ({
   name: "stage",

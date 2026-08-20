@@ -8,7 +8,7 @@ export default defineConfig({
       reportsDirectory: "coverage",
       include: ["src/**/*.ts"],
       exclude: [
-        "src/**/*.test.ts",
+        "tests/**/*.ts",
         "src/config/schema-v1.ts",
         "src/core/fake-process-runner.ts",
       ],

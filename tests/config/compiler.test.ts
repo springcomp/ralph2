@@ -1,7 +1,10 @@
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { WorkflowCompileError, compileWorkflow } from "./compiler.js";
-import type { V1WorkflowDocument } from "./schema-v1.js";
+import {
+  WorkflowCompileError,
+  compileWorkflow,
+} from "../../src/config/compiler.js";
+import type { V1WorkflowDocument } from "../../src/config/schema-v1.js";
 
 describe("compileWorkflow", () => {
   const baseDoc: V1WorkflowDocument = {

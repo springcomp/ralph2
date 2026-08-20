@@ -9,14 +9,14 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { WorkflowExitCodes } from "./exit-codes.js";
+import { WorkflowExitCodes } from "../../src/core/exit-codes.js";
 import {
   LockError,
   StateLock,
   WorkspaceLock,
   currentHost,
   lockExists,
-} from "./locks.js";
+} from "../../src/core/locks.js";
 
 const workspaces: string[] = [];
 async function workspace(): Promise<string> {

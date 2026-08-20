@@ -24,7 +24,7 @@
     "test:coverage": "vitest run --coverage",
     "lint": "biome check .",
     "format": "biome format --write .",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "typecheck": "tsc -p tsconfig.test.json --noEmit",
     "seed:bootstrap": "pnpm build && node scripts/seed-bootstrap.mjs"
   },
   "dependencies": {

@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { getTemplate, templates } from "./template-registry.js";
+import {
+  getTemplate,
+  templates,
+} from "../../src/templates/template-registry.js";
 
 describe("template-registry", () => {
   it("exports goal and blueprint templates", () => {

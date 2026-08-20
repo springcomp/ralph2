@@ -2,12 +2,12 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { WorkflowPlan } from "../config/compiler.js";
-import type { WorkflowEngineCallbacks } from "../core/engine.js";
-import { WorkflowExitCodes } from "../core/exit-codes.js";
-import { createProgram } from "./index.js";
+import { createProgram } from "../../src/cli/index.js";
+import type { WorkflowPlan } from "../../src/config/compiler.js";
+import type { WorkflowEngineCallbacks } from "../../src/core/engine.js";
+import { WorkflowExitCodes } from "../../src/core/exit-codes.js";
 
-vi.mock("../core/engine.js", () => {
+vi.mock("../../src/core/engine.js", () => {
   return {
     WorkflowEngine: class MockWorkflowEngine {
       callbacks?: WorkflowEngineCallbacks;

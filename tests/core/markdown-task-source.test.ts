@@ -6,7 +6,7 @@ import {
   MarkdownTaskError,
   MarkdownTaskSource,
   parseTaskLine,
-} from "./markdown-task-source.js";
+} from "../../src/core/markdown-task-source.js";
 
 const roots: string[] = [];
 async function files(prd = "# PRD\n- [ ] TASK-001 - First\n") {

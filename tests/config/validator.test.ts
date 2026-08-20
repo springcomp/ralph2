@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
-import type { V1WorkflowDocument } from "./schema-v1.js";
+import type { V1WorkflowDocument } from "../../src/config/schema-v1.js";
 import {
   WorkflowValidationError,
   parseTimeout,
   parseWorkflowYaml,
   validateWorkflow,
-} from "./validator.js";
+} from "../../src/config/validator.js";
 
 describe("parseWorkflowYaml", () => {
   it("parses valid workflow yaml mapping", () => {

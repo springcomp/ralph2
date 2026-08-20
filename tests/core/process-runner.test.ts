@@ -2,12 +2,12 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { FakeProcessRunner } from "./fake-process-runner.js";
+import { FakeProcessRunner } from "../../src/core/fake-process-runner.js";
 import {
   type ProcessResult,
   RealProcessRunner,
   redactSecrets,
-} from "./process-runner.js";
+} from "../../src/core/process-runner.js";
 
 const runner = new RealProcessRunner();
 const tempDirectories: string[] = [];
