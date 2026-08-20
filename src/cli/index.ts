@@ -69,6 +69,13 @@ export function createProgram(): Command {
           },
         );
         const result = await engine.run(plan, options);
+        if (result.message) {
+          if (result.exitCode === WorkflowExitCodes.Complete) {
+            console.log(result.message);
+          } else {
+            console.error(result.message);
+          }
+        }
         process.exitCode = result.exitCode;
       } catch (error) {
         process.exitCode =
