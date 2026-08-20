@@ -1,0 +1,81 @@
+schemaVersion: 1
+
+workspace: ..
+maxIterations: 100
+
+tasks:
+  format: markdown
+  prd: .agentic/PRD.md
+  progress: .agentic/progress.txt
+  prompt: .agentic/ralph.prompt.md
+  completionSignal: <ralph>COMPLETE</ralph>
+  metadata:
+    model: model
+    agent: agent
+
+defaults:
+  harness: pi
+  model: openrouter/anthropic/claude-haiku-4.5
+  agent: null
+
+harnesses:
+  pi:
+    executable: pi
+    arguments:
+      - --model
+      - "{MODEL}"
+      - -p
+      - "Follow instructions from {PROMPT}"
+    conditionalArguments:
+      - whenSet: AGENT
+        arguments:
+          - --agent
+          - "{AGENT}"
+    timeout: 30m
+    successExitCodes: [0]
+    output:
+      combined: .agentic/__agent.log
+
+preAgent: []
+
+postAgent:
+  - name: test
+    executable: python
+    arguments:
+      - -m
+      - unittest
+      - discover
+      - -s
+      - tests
+    timeout: 10m
+    successExitCodes: [0]
+    output:
+      combined: .agentic/__test.log
+    onFailure:
+      action: scheduleTask
+      task: "- [ ] FIX-{ITERATION:000} - Unit tests failed; inspect __test.log"
+
+verification:
+  requireTaskChecked: true
+  retries: 1
+  prompt: |
+    Task: {TASK}
+
+    Deterministic checks passed, but the task is still unchecked in PRD.
+    Verify whether the work is complete. Check the task if complete, or document
+    blockers in progress.txt.
+
+continuation:
+  kind: generatedGoal
+  producer:
+    executable: python
+    arguments:
+      - "{WORKSPACE}/scripts/check_goal.py"
+    timeout: 15m
+    successExitCodes: [0]
+    output:
+      combined: .agentic/__goal-producer.log
+  completeWhen:
+    kind: fileMissing
+    path: .agentic/__remaining_failures.log
+  nextTask: "- [ ] GOAL-{ITERATION:000} - Resolve remaining failures from .agentic/__remaining_failures.log"
