@@ -1,7 +1,7 @@
+import type { StagePlan } from "../config/compiler.js";
 import type { MarkdownTaskSource } from "../core/markdown-task-source.js";
 import type { PlaceholderContext } from "../core/placeholders.js";
 import type { ProcessResult } from "../core/process-runner.js";
-import type { StagePlan } from "../config/compiler.js";
 
 export interface ExtensionEvent {
   type: string;

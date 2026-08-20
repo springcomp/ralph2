@@ -12,10 +12,7 @@ export const scheduleTaskAction: ActionRegistration = {
     },
   ],
   callback: async ({ source, prdPath, stage, expand, iteration, emit }) => {
-    await source.scheduleTask(
-      prdPath,
-      expand(stage.failureTask ?? ""),
-    );
+    await source.scheduleTask(prdPath, expand(stage.failureTask ?? ""));
     await emit({
       type: "fix.scheduled",
       iteration,

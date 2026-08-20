@@ -5,6 +5,7 @@ import {
   compileWorkflow,
 } from "../../src/config/compiler.js";
 import type { V1WorkflowDocument } from "../../src/config/schema-v1.js";
+import { defaultExtensionRegistry } from "../../src/extensions/registry.js";
 
 describe("compileWorkflow", () => {
   const baseDoc: V1WorkflowDocument = {
@@ -258,6 +259,58 @@ describe("compileWorkflow", () => {
     };
     expect(() => compileWorkflow(invalidDoc, "/mock/project")).toThrow(
       WorkflowCompileError,
+    );
+  });
+
+  it("compiles named producer string to the same StagePlan as inline command", () => {
+    const inlineDoc: V1WorkflowDocument = {
+      ...baseDoc,
+      continuation: {
+        kind: "generatedGoal",
+        producer: {
+          executable: "sh",
+          arguments: ["-c", "test ! -e .agentic/__remaining_failures.log"],
+          timeout: "15m",
+          successExitCodes: [0],
+        },
+        completeWhen: { kind: "fileMissing", path: "marker.log" },
+        nextTask: "- [ ] GOAL-{ITERATION:000} - Fix",
+      },
+    };
+    const namedDoc: V1WorkflowDocument = {
+      ...baseDoc,
+      continuation: {
+        kind: "generatedGoal",
+        producer: "goalProducer",
+        completeWhen: { kind: "fileMissing", path: "marker.log" },
+        nextTask: "- [ ] GOAL-{ITERATION:000} - Fix",
+      },
+    };
+
+    const inlinePlan = compileWorkflow(
+      inlineDoc,
+      "/mock/project",
+      {},
+      defaultExtensionRegistry,
+    );
+    const namedPlan = compileWorkflow(
+      namedDoc,
+      "/mock/project",
+      {},
+      defaultExtensionRegistry,
+    );
+
+    expect(namedPlan.continuation?.producer?.executable).toBe(
+      inlinePlan.continuation?.producer?.executable,
+    );
+    expect(namedPlan.continuation?.producer?.arguments).toEqual(
+      inlinePlan.continuation?.producer?.arguments,
+    );
+    expect(namedPlan.continuation?.producer?.timeoutMs).toBe(
+      inlinePlan.continuation?.producer?.timeoutMs,
+    );
+    expect(namedPlan.continuation?.producer?.successExitCodes).toEqual(
+      inlinePlan.continuation?.producer?.successExitCodes,
     );
   });
 });

@@ -13,10 +13,12 @@ import { WorkflowEngine } from "../core/engine.js";
 import { WorkflowExitCodes } from "../core/exit-codes.js";
 import { RealProcessRunner } from "../core/process-runner.js";
 import {
-  type ExtensionRegistration,
   type ActionRegistration,
-  type PredicateRegistration,
+  type ExtensionRegistration,
   type ExtensionRegistry,
+  type PredicateRegistration,
+  type ProducerRegistration,
+  type TemplateRegistration,
   defaultExtensionRegistry,
 } from "../extensions/registry.js";
 import { getTemplate, templates } from "../templates/template-registry.js";
@@ -31,6 +33,8 @@ export type {
   PredicateRegistration,
   ExtensionRegistration,
   ExtensionRegistry,
+  TemplateRegistration,
+  ProducerRegistration,
 } from "../extensions/registry.js";
 
 interface CliOptions {
@@ -119,27 +123,25 @@ export function createProgram(
     .command("schema")
     .argument("[show]", "show the workflow schema")
     .option("--config <path>", "workflow YAML path");
-  schema.action(
-    async (show: string | undefined, options: CliOptions) => {
-      try {
-        if (show && show !== "show") {
-          console.error(`Unknown subcommand '${show}'.`);
-          process.exitCode = WorkflowExitCodes.InvalidConfiguration;
-          return;
-        }
-        if (options.config) {
-          await readConfig(options.config, options, extensions);
-          console.log("Configuration is valid.");
-        } else {
-          console.log(workflowSchemaYaml(extensions));
-        }
-        process.exitCode = WorkflowExitCodes.Complete;
-      } catch (error) {
+  schema.action(async (show: string | undefined, options: CliOptions) => {
+    try {
+      if (show && show !== "show") {
+        console.error(`Unknown subcommand '${show}'.`);
         process.exitCode = WorkflowExitCodes.InvalidConfiguration;
-        console.error(error instanceof Error ? error.message : String(error));
+        return;
       }
-    },
-  );
+      if (options.config) {
+        await readConfig(options.config, options, extensions);
+        console.log("Configuration is valid.");
+      } else {
+        console.log(workflowSchemaYaml(extensions));
+      }
+      process.exitCode = WorkflowExitCodes.Complete;
+    } catch (error) {
+      process.exitCode = WorkflowExitCodes.InvalidConfiguration;
+      console.error(error instanceof Error ? error.message : String(error));
+    }
+  });
 
   program
     .command("init")
@@ -152,17 +154,23 @@ export function createProgram(
         workingDirectory: string;
         force?: boolean;
       }) => {
-        const template = getTemplate(options.template);
-        if (!template) {
+        const registered = extensions.template(options.template);
+        const legacyTemplate = !registered
+          ? getTemplate(options.template)
+          : undefined;
+        if (!registered && !legacyTemplate) {
           process.exitCode = WorkflowExitCodes.InvalidConfiguration;
           console.error("Unknown template.");
           return;
         }
+        const entries: Iterable<[string, string]> = registered
+          ? registered.files
+          : Object.entries(legacyTemplate ?? {});
         const root = resolve(options.workingDirectory);
         const target = resolve(root, ".agentic");
         try {
           await mkdir(target, { recursive: true });
-          for (const [name, content] of Object.entries(template)) {
+          for (const [name, content] of entries) {
             const path = resolve(target, name);
             if (!options.force) {
               try {
@@ -204,7 +212,15 @@ export function createProgram(
   };
 
   addShowCommand("templates", () => {
-    console.log(Object.keys(templates).join("\n"));
+    const registeredNames = new Set(
+      extensions.templates.map((t) => t.name.toLowerCase()),
+    );
+    const legacyNames = Object.keys(templates).filter(
+      (n) => !registeredNames.has(n.toLowerCase()),
+    );
+    console.log(
+      [...extensions.templates.map((t) => t.name), ...legacyNames].join("\n"),
+    );
   });
   addShowCommand(
     "variables",
@@ -216,14 +232,10 @@ export function createProgram(
     ["vars"],
   );
   addShowCommand("actions", () => {
-    console.log(
-      extensions.actions.map((x) => x.name).join("\n"),
-    );
+    console.log(extensions.actions.map((x) => x.name).join("\n"));
   });
   addShowCommand("predicates", () => {
-    console.log(
-      extensions.predicates.map((x) => x.name).join("\n"),
-    );
+    console.log(extensions.predicates.map((x) => x.name).join("\n"));
   });
 
   const explain = program.command("explain");

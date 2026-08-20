@@ -3,13 +3,13 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { compileWorkflow } from "../../src/config/compiler.js";
+import { parseWorkflowYaml } from "../../src/config/validator.js";
 import { WorkflowEngine } from "../../src/core/engine.js";
 import type {
   ProcessRequest,
   ProcessResult,
   ProcessRunner,
 } from "../../src/core/process-runner.js";
-import { parseWorkflowYaml } from "../../src/config/validator.js";
 
 const success = (): ProcessResult => ({
   exitCode: 0,
@@ -36,7 +36,8 @@ class FakeCodingAgent implements ProcessRunner {
       const prompt = this.argument(request, "--prompt");
       const prd = await readFile(this.prdPath, "utf8");
       const unchecked = prd.match(/- \[ \] ([^\n]+)/)?.[1];
-      if (!prompt || !unchecked) throw new Error("coding-agent received no task");
+      if (!prompt || !unchecked)
+        throw new Error("coding-agent received no task");
       await writeFile(this.prdPath, prd.replace("- [ ]", "- [x]"), "utf8");
       return success();
     }
@@ -135,8 +136,12 @@ verification:
     const result = await new WorkflowEngine(runner).run(plan);
 
     expect(result.status).toBe("complete");
-    expect(runner.requests.filter(({ command }) => command === "coding-agent")).toHaveLength(2);
-    expect(runner.requests.filter(({ command }) => command === "build")).toHaveLength(0);
+    expect(
+      runner.requests.filter(({ command }) => command === "coding-agent"),
+    ).toHaveLength(2);
+    expect(
+      runner.requests.filter(({ command }) => command === "build"),
+    ).toHaveLength(0);
     expect((await readFile(prdPath, "utf8")).match(/- \[x\]/g)).toHaveLength(2);
     await expect(readFile(markerPath, "utf8")).rejects.toThrow();
   });
@@ -160,7 +165,9 @@ verification:
     }).run(plan);
 
     expect(result.status).toBe("complete");
-    expect(runner.requests.filter(({ command }) => command === "build")).toHaveLength(3);
+    expect(
+      runner.requests.filter(({ command }) => command === "build"),
+    ).toHaveLength(3);
     expect(events.filter((type) => type === "fix.scheduled")).toHaveLength(1);
     const prd = await readFile(prdPath, "utf8");
     expect(prd).toContain("- [x] FIX-001 - Fix build");

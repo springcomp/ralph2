@@ -1,8 +1,8 @@
 import { parse } from "yaml";
 import { PlaceholderRegistry } from "../core/placeholders.js";
 import {
-  defaultExtensionRegistry,
   type ExtensionRegistry,
+  defaultExtensionRegistry,
 } from "../extensions/registry.js";
 import type { CommandDto, V1WorkflowDocument } from "./schema-v1.js";
 
@@ -185,7 +185,17 @@ export function validateWorkflow(
     if (cont.kind === "generatedGoal") {
       if (!cont.producer)
         d.push({ path: "continuation.producer", message: "is required" });
-      else command("continuation.producer", cont.producer, d, extensions);
+      else if (typeof cont.producer === "string") {
+        if (!cont.producer.trim())
+          d.push({ path: "continuation.producer", message: "is required" });
+        else if (!extensions.producer(cont.producer))
+          d.push({
+            path: "continuation.producer",
+            message: `unknown producer '${cont.producer}'`,
+          });
+      } else {
+        command("continuation.producer", cont.producer, d, extensions);
+      }
       if (!cont.completeWhen)
         d.push({ path: "continuation.completeWhen", message: "is required" });
       if (!nonempty(cont.nextTask))

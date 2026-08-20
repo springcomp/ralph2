@@ -6,6 +6,7 @@ import { createProgram } from "../../src/cli/index.js";
 import type { WorkflowPlan } from "../../src/config/compiler.js";
 import type { WorkflowEngineCallbacks } from "../../src/core/engine.js";
 import { WorkflowExitCodes } from "../../src/core/exit-codes.js";
+import { createExtensionRegistry } from "../../src/extensions/registry.js";
 
 vi.mock("../../src/core/engine.js", () => {
   return {
@@ -72,17 +73,15 @@ describe("CLI Application", () => {
       },
     );
 
-    it.each([
-      ["variables"],
-      ["variables", "show"],
-      ["vars"],
-      ["vars", "show"],
-    ])("lists supported variables with %s", async (...args) => {
-      await createProgram().parseAsync(["node", "ralph", ...args]);
-      expect(consoleLogSpy).toHaveBeenCalledWith(
-        expect.stringContaining("MODEL"),
-      );
-    });
+    it.each([["variables"], ["variables", "show"], ["vars"], ["vars", "show"]])(
+      "lists supported variables with %s",
+      async (...args) => {
+        await createProgram().parseAsync(["node", "ralph", ...args]);
+        expect(consoleLogSpy).toHaveBeenCalledWith(
+          expect.stringContaining("MODEL"),
+        );
+      },
+    );
 
     it.each([["actions"], ["actions", "show"]])(
       "lists registered actions with %s",
@@ -127,7 +126,9 @@ describe("CLI Application", () => {
     it("rejects an unknown promoted subcommand", async () => {
       await createProgram().parseAsync(["node", "ralph", "templates", "list"]);
       expect(process.exitCode).toBe(WorkflowExitCodes.InvalidConfiguration);
-      expect(consoleErrorSpy).toHaveBeenCalledWith("Unknown subcommand 'list'.");
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        "Unknown subcommand 'list'.",
+      );
     });
   });
 
@@ -421,6 +422,54 @@ harnesses:
 
       expect(process.exitCode).toBe(WorkflowExitCodes.InvalidConfiguration);
       expect(consoleErrorSpy).toHaveBeenCalled();
+    });
+  });
+
+  describe("custom extension registry templates", () => {
+    it("lists custom template alongside built-ins and blueprint", async () => {
+      const registry = createExtensionRegistry({
+        templates: [
+          {
+            name: "custom",
+            files: new Map([["ralph.yaml", "schemaVersion: 1"]]),
+          },
+        ],
+      });
+      await createProgram(registry).parseAsync(["node", "ralph", "templates"]);
+      const output = (consoleLogSpy.mock.calls[0]?.[0] as string) ?? "";
+      expect(output).toContain("goal");
+      expect(output).toContain("custom");
+      expect(output).toContain("blueprint");
+    });
+
+    it("initializes a custom registered template", async () => {
+      const registry = createExtensionRegistry({
+        templates: [
+          {
+            name: "custom",
+            files: new Map([
+              ["ralph.yaml", "schemaVersion: 1\n# custom template\n"],
+            ]),
+          },
+        ],
+      });
+      await createProgram(registry).parseAsync([
+        "node",
+        "ralph",
+        "init",
+        "--template",
+        "custom",
+        "--working-directory",
+        tmpDir,
+      ]);
+      const yaml = await readFile(
+        join(tmpDir, ".agentic", "ralph.yaml"),
+        "utf8",
+      );
+      expect(yaml).toContain("custom template");
+      expect(consoleLogSpy).toHaveBeenCalledWith(
+        expect.stringContaining("Initialized custom workflow"),
+      );
     });
   });
 });

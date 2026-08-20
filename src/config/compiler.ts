@@ -1,14 +1,14 @@
 import { isAbsolute, normalize, resolve } from "node:path";
+import {
+  type ExtensionRegistry,
+  defaultExtensionRegistry,
+} from "../extensions/registry.js";
 import type { CommandDto, V1WorkflowDocument } from "./schema-v1.js";
 import {
   type Diagnostic,
   parseTimeout,
   validateWorkflow,
 } from "./validator.js";
-import {
-  defaultExtensionRegistry,
-  type ExtensionRegistry,
-} from "../extensions/registry.js";
 
 export interface CompileOptions {
   workingDirectory?: string;
@@ -85,6 +85,15 @@ const path = (workspace: string, value: unknown): string | undefined =>
     : normalize(
         isAbsolute(text(value)) ? text(value) : resolve(workspace, text(value)),
       );
+function resolveProducerDto(
+  producer: string | import("./schema-v1.js").CommandDto | null | undefined,
+  extensions: ExtensionRegistry,
+): CommandDto | undefined {
+  if (!producer) return undefined;
+  if (typeof producer === "string")
+    return extensions.producer(producer)?.create();
+  return producer;
+}
 function stage(name: string, dto: CommandDto, workspace: string): StagePlan {
   return {
     name,
@@ -154,9 +163,13 @@ export function compileWorkflow(
         completeWhenSourceExhausted:
           document.continuation.completeWhenSourceExhausted === true,
         nextTask: text(document.continuation.nextTask) || undefined,
-        producer: document.continuation.producer
-          ? stage("producer", document.continuation.producer, workspace)
-          : undefined,
+        producer: (() => {
+          const dto = resolveProducerDto(
+            document.continuation.producer,
+            extensions,
+          );
+          return dto ? stage("producer", dto, workspace) : undefined;
+        })(),
         completeWhen: document.continuation.completeWhen
           ? {
               kind: text(document.continuation.completeWhen.kind),

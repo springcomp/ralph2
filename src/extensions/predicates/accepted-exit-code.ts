@@ -8,7 +8,8 @@ export const acceptedExitCodePredicate: PredicateRegistration = {
       name: "check",
       type: "command",
       required: true,
-      description: "Command used to determine whether continuation is complete.",
+      description:
+        "Command used to determine whether continuation is complete.",
     },
   ],
   callback: async ({ check, runStage }) => {

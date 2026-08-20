@@ -47,7 +47,14 @@ export function workflowSchema(registry: ExtensionRegistry): JsonSchema {
     $schema: "https://json-schema.org/draft/2020-12/schema",
     title: "Ralph workflow configuration",
     type: "object",
-    required: ["schemaVersion", "workspace", "maxIterations", "tasks", "defaults", "harnesses"],
+    required: [
+      "schemaVersion",
+      "workspace",
+      "maxIterations",
+      "tasks",
+      "defaults",
+      "harnesses",
+    ],
     properties: {
       schemaVersion: { const: 1 },
       workspace: { type: "string", minLength: 1 },
@@ -87,7 +94,18 @@ export function workflowSchema(registry: ExtensionRegistry): JsonSchema {
         properties: {
           kind: { enum: ["blueprint", "generatedGoal"] },
           source: { type: "string" },
-          producer: { $ref: "#/$defs/command" },
+          producer:
+            registry.producers.length > 0
+              ? {
+                  oneOf: [
+                    {
+                      type: "string",
+                      enum: registry.producers.map((p) => p.name),
+                    },
+                    { $ref: "#/$defs/command" },
+                  ],
+                }
+              : { $ref: "#/$defs/command" },
           completeWhen: {
             type: "object",
             properties: {

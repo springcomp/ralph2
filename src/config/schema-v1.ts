@@ -55,7 +55,7 @@ export interface ContinuationDto {
   source?: unknown;
   seedPrdFromSource?: unknown;
   completeWhenSourceExhausted?: unknown;
-  producer?: CommandDto | null;
+  producer?: string | CommandDto | null;
   completeWhen?: CompletionPredicateDto | null;
   nextTask?: unknown;
 }

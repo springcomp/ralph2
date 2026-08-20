@@ -6,6 +6,7 @@ import {
   parseWorkflowYaml,
   validateWorkflow,
 } from "../../src/config/validator.js";
+import { defaultExtensionRegistry } from "../../src/extensions/registry.js";
 
 describe("parseWorkflowYaml", () => {
   it("parses valid workflow yaml mapping", () => {
@@ -292,5 +293,48 @@ describe("validateWorkflow", () => {
     expect(validateWorkflow(doc).map((d) => d.path)).toContain(
       "defaults.statusFormat[0]",
     );
+  });
+
+  it("accepts named producer string for generatedGoal continuation", () => {
+    const doc = {
+      ...validBaseDoc,
+      continuation: {
+        kind: "generatedGoal",
+        producer: "goalProducer",
+        completeWhen: { kind: "fileMissing" },
+        nextTask: "- [ ] GOAL-{ITERATION:000} - Fix",
+      },
+    };
+    expect(validateWorkflow(doc, defaultExtensionRegistry)).toHaveLength(0);
+  });
+
+  it("diagnoses unknown named producer", () => {
+    const doc = {
+      ...validBaseDoc,
+      continuation: {
+        kind: "generatedGoal",
+        producer: "unknownProducer",
+        completeWhen: { kind: "fileMissing" },
+        nextTask: "- [ ] GOAL-001 - Fix",
+      },
+    };
+    const paths = validateWorkflow(doc).map((d) => d.path);
+    expect(paths).toContain("continuation.producer");
+    const messages = validateWorkflow(doc).map((d) => d.message);
+    expect(messages.some((m) => m.includes("unknownProducer"))).toBe(true);
+  });
+
+  it("diagnoses blank string producer for generatedGoal", () => {
+    const doc = {
+      ...validBaseDoc,
+      continuation: {
+        kind: "generatedGoal",
+        producer: "   ",
+        completeWhen: { kind: "fileMissing" },
+        nextTask: "- [ ] GOAL-001 - Fix",
+      },
+    };
+    const paths = validateWorkflow(doc).map((d) => d.path);
+    expect(paths).toContain("continuation.producer");
   });
 });

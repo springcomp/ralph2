@@ -1,6 +1,10 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import type { StagePlan, WorkflowPlan } from "../config/compiler.js";
+import {
+  type ExtensionRegistry,
+  defaultExtensionRegistry,
+} from "../extensions/registry.js";
 import { WorkflowExitCodes } from "./exit-codes.js";
 import { WorkspaceLock } from "./locks.js";
 import {
@@ -12,10 +16,6 @@ import {
   PlaceholderExpander,
 } from "./placeholders.js";
 import type { ProcessResult, ProcessRunner } from "./process-runner.js";
-import {
-  defaultExtensionRegistry,
-  type ExtensionRegistry,
-} from "../extensions/registry.js";
 
 export type WorkflowStatus =
   | "complete"
