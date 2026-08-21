@@ -28,7 +28,7 @@ harnesses:
       - --model
       - "{MODEL}"
       - --print
-      - "Follow instructions from {PROMPT}"
+      - "Follow instructions from {PROMPT} prd={PRD} progress={PROGRESS}"
     conditionalArguments:
       - whenSet: AGENT
         arguments:
@@ -60,6 +60,67 @@ continuation:
 const files = new Map(goalTemplateRegistration.files);
 files.set("ralph.yaml", blueprintYaml);
 files.set("PRD.md", "# Product Requirements\n\n");
+files.set("ralph.prompt.md", `
+---
+argument-hint: [prd={PRD}] [progress={PROGRESS}]
+---
+# Ralph Loop
+
+You are a coding agent running in a loop at workspace root.
+Each iteration, you get a fresh context window.
+
+## Files
+
+- \`{PRD}\` (defaults to \`.agentic/PRD.md\`: path Product Requirements Document (PRD) from workspace root.
+- \`{PROGRESS}\` (defaults to \`.agentic/progress.txt\`: path progress file from workspace root.
+
+PRD maintains a bulleted list of checkable task, with format:
+
+> \`- [ ] {TYP}-{NUM} - {TASK} ({REF})? …\`
+
+Where:
+- \`{TYP}\` task type
+- \`{NUM}\` task number
+- \`{TASK}\` description
+- \`{REF}\` optional reference documentation
+
+## Workflow
+
+1. Pick up the first unchecked task (\`- [ ]\`) from \`{PRD}\`.
+2. Read PROGRESS for context.
+3. Follow TYP-specific task rules (see \`### Tasks\` below) .
+4. When done, check task in \'{PRD}\`.
+5. Persist any learnings or findings in \`{PROGRESS}\`.
+
+### Tasks
+
+- \`FIX-\` tasks
+- \`TASK-\` or any other tasks: default processing.
+
+### TASK or default tasks
+
+- If REF is specified:
+  - Follow instructions from \`{REF}\`.
+  - Commit your work with \`git add . && git commit -m "{TYP}-{NUM} - {a short description}"\`
+- Otherwise, this is a simple inline task:
+  - Follow instructions as worded by \`{TASK}\`.
+  - Check inline task when done.
+
+### FIX tasks
+
+- This is a FIX task:
+- Check either of the following files exist:
+  - \`__build.log\`: read and fix build failures.
+  - \`__test.log\`: read and fix failed tests.
+
+### Rules
+
+- Pick the first **unchecked** task.
+- Focus on that **ONE** task only.
+- Check the task when done with (\`- [x]\`).
+- NEVER consider later tasks.
+- NEVER delegate later tasks.
+`);
 files.set(
   "BLUEPRINT.md",
   "# Blueprint\n\n- [ ] TASK-001 - Define first task\n",
