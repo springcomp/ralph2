@@ -35,6 +35,7 @@ export interface CommandDto {
   successExitCodes?: unknown;
   output?: { combined?: unknown } | null;
   onFailure?: { action?: unknown; task?: unknown } | null;
+  pty?: unknown;
 }
 export interface ConditionalArgumentsDto {
   whenSet?: unknown;

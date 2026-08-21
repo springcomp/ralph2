@@ -116,6 +116,24 @@ describe("validateWorkflow", () => {
     expect(diagnostics).toHaveLength(0);
   });
 
+  it("accepts a boolean pty field on a command and rejects non-boolean values", () => {
+    const withPty = {
+      ...validBaseDoc,
+      harnesses: {
+        pi: { ...validBaseDoc.harnesses.pi, pty: true },
+      },
+    };
+    expect(validateWorkflow(withPty)).toHaveLength(0);
+
+    const withInvalidPty = {
+      ...validBaseDoc,
+      harnesses: {
+        pi: { ...validBaseDoc.harnesses.pi, pty: "yes" },
+      },
+    };
+    expect(validateWorkflow(withInvalidPty).length).toBeGreaterThan(0);
+  });
+
   it("validates valid blueprint continuation", () => {
     const doc = {
       ...validBaseDoc,

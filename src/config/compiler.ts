@@ -17,6 +17,8 @@ export interface CompileOptions {
   harness?: string;
   model?: string | null;
   agent?: string | null;
+  /** CLI-resolved --pty/--no-pty override; undefined = auto-detect per stage */
+  pty?: boolean;
 }
 export interface EnvironmentVariablePlan {
   name: string;
@@ -35,6 +37,8 @@ export interface StagePlan {
   failureAction?: string;
   failureTask?: string;
   failurePolicy: "stop" | "continue";
+  /** undefined = inherit workflow-level ptyDefault */
+  pty?: boolean;
 }
 export interface TaskFileSet {
   prd: string;
@@ -71,6 +75,8 @@ export interface WorkflowPlan {
     };
   };
   statusFormat: string;
+  /** CLI-resolved --pty/--no-pty override; undefined = auto-detect per stage */
+  ptyDefault?: boolean;
 }
 export class WorkflowCompileError extends Error {
   constructor(readonly diagnostics: readonly Diagnostic[]) {
@@ -94,7 +100,12 @@ function resolveProducerDto(
     return extensions.producer(producer)?.create();
   return producer;
 }
-function stage(name: string, dto: CommandDto, workspace: string): StagePlan {
+function stage(
+  name: string,
+  dto: CommandDto,
+  workspace: string,
+  ptyDefault?: boolean,
+): StagePlan {
   return {
     name,
     executable: text(dto.executable),
@@ -125,6 +136,7 @@ function stage(name: string, dto: CommandDto, workspace: string): StagePlan {
     failureAction: text(dto.onFailure?.action) || undefined,
     failureTask: text(dto.onFailure?.task) || undefined,
     failurePolicy: dto.failurePolicy === "continue" ? "continue" : "stop",
+    pty: typeof dto.pty === "boolean" ? dto.pty : ptyDefault,
   };
 }
 export function compileWorkflow(
@@ -152,7 +164,7 @@ export function compileWorkflow(
   const harnesses = Object.fromEntries(
     Object.entries(configuredHarnesses).map(([name, dto]) => [
       name,
-      stage(name, dto, workspace),
+      stage(name, dto, workspace, options.pty),
     ]),
   );
   const continuation = document.continuation
@@ -168,7 +180,9 @@ export function compileWorkflow(
             document.continuation.producer,
             extensions,
           );
-          return dto ? stage("producer", dto, workspace) : undefined;
+          return dto
+            ? stage("producer", dto, workspace, options.pty)
+            : undefined;
         })(),
         completeWhen: document.continuation.completeWhen
           ? {
@@ -179,6 +193,7 @@ export function compileWorkflow(
                     "completion-check",
                     document.continuation.completeWhen.check,
                     workspace,
+                    options.pty,
                   )
                 : undefined,
             }
@@ -205,10 +220,20 @@ export function compileWorkflow(
         ? options.agent
         : text(defaults.agent) || null,
     preAgent: (document.preAgent ?? []).map((x, i) =>
-      stage(x.name ? text(x.name) : `preAgent[${i}]`, x, workspace),
+      stage(
+        x.name ? text(x.name) : `preAgent[${i}]`,
+        x,
+        workspace,
+        options.pty,
+      ),
     ),
     postAgent: (document.postAgent ?? []).map((x, i) =>
-      stage(x.name ? text(x.name) : `postAgent[${i}]`, x, workspace),
+      stage(
+        x.name ? text(x.name) : `postAgent[${i}]`,
+        x,
+        workspace,
+        options.pty,
+      ),
     ),
     verification: {
       requireTaskChecked: document.verification?.requireTaskChecked !== false,
@@ -220,5 +245,6 @@ export function compileWorkflow(
       defaults.statusFormat,
       "🔄️ Iteration {ITERATION:000} - {TYP}-{NUM} - {TASK} (model: `{MODEL}`)",
     ),
+    ptyDefault: options.pty,
   };
 }

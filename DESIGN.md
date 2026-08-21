@@ -137,6 +137,18 @@ Validates YAML against the Ralph V1 Schema:
 The user MUST see the inner processes’ stdout / stderr in real time,
 include ANSI colors and Unicode encodings. Use a pseudo TTY if needed.
 
+Implemented via `@lydell/node-pty`: `RealProcessRunner` allocates a pseudo-terminal for the
+child process instead of plain pipes, which preserves ANSI escape sequences that would
+otherwise be stripped by the child's own color-detection logic. Because a real terminal merges
+stdout and stderr into a single stream, PTY-mode output is reported to `onOutput` as `"stdout"`.
+
+- **Enablement**: auto-detected from Ralph's own `process.stdout.isTTY`, overridable per
+  command/harness (`pty: true|false` in YAML) and globally via `--pty` / `--no-pty` CLI flags.
+  Precedence: per-command config > CLI flag > auto-detect.
+- **Fallback**: if the pty module fails to load or fails to allocate a terminal (e.g. an
+  unsupported platform/arch), `RealProcessRunner` transparently falls back to the existing
+  piped `child_process.spawn` path.
+
 ---
 
 ### 5. Workflow Engine (`src/core/engine.ts`)

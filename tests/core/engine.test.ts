@@ -114,6 +114,39 @@ describe("WorkflowEngine", () => {
     expect(events.some((e) => e.type === "task.started")).toBe(true);
   });
 
+  it("forwards the stage's pty setting to the process request", async () => {
+    await writeFile(prdPath, "- [ ] TASK-001 - Implement feature\n", "utf8");
+    const runner = new FakeProcessRunner();
+    const customRunner = {
+      requests: runner.requests,
+      async run(req: ProcessRequest): Promise<ProcessResult> {
+        runner.requests.push(req);
+        await writeFile(
+          prdPath,
+          "- [x] TASK-001 - Implement feature\n",
+          "utf8",
+        );
+        return { exitCode: 0, signal: null, timedOut: false, cancelled: false };
+      },
+    };
+
+    const engine = new WorkflowEngine(customRunner);
+    const plan = createPlan({
+      harnesses: {
+        pi: createStagePlan({
+          name: "pi",
+          executable: "pi",
+          arguments: ["--model", "{MODEL}", "--prompt", "{PROMPT}"],
+          pty: true,
+        }),
+      },
+    });
+
+    await engine.run(plan);
+
+    expect(customRunner.requests[0].usePty).toBe(true);
+  });
+
   it("handles model and agent precedence: Task Metadata > CLI > YAML Default", async () => {
     await writeFile(
       prdPath,

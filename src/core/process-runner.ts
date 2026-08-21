@@ -1,6 +1,8 @@
 import { type ChildProcess, spawn } from "node:child_process";
-import { mkdir, open } from "node:fs/promises";
+import { type FileHandle, mkdir, open } from "node:fs/promises";
+import { constants as osConstants } from "node:os";
 import { dirname } from "node:path";
+import type { IPty } from "@lydell/node-pty";
 
 export interface SecretEnvironmentValue {
   readonly value: string;
@@ -21,6 +23,8 @@ export interface ProcessRequest {
   readonly timeoutMs?: number;
   readonly signal?: AbortSignal;
   readonly onOutput?: (text: string, stream: "stdout" | "stderr") => void;
+  /** undefined = auto-detect from Ralph's own stdout TTY-ness */
+  readonly usePty?: boolean;
 }
 
 export interface ProcessResult {
@@ -85,23 +89,140 @@ function killTree(child: ChildProcess): void {
   }
 }
 
+interface ResolvedEnvironment {
+  env: NodeJS.ProcessEnv;
+  secrets: string[];
+}
+
+function resolveEnvironment(request: ProcessRequest): ResolvedEnvironment {
+  const env: NodeJS.ProcessEnv = { ...process.env };
+  const secrets: string[] = [];
+  for (const [key, configured] of Object.entries(request.env ?? {})) {
+    const value =
+      typeof configured === "string" ? configured : configured.value;
+    env[key] = value;
+    if (typeof configured !== "string" && configured.secret)
+      secrets.push(value);
+  }
+  return { env, secrets };
+}
+
+function signalNameFromNumber(
+  signal: number | undefined,
+): NodeJS.Signals | null {
+  if (!signal) return null;
+  const entry = Object.entries(osConstants.signals).find(
+    ([, value]) => value === signal,
+  );
+  return (entry?.[0] as NodeJS.Signals | undefined) ?? null;
+}
+
 export class RealProcessRunner implements ProcessRunner {
   async run(request: ProcessRequest): Promise<ProcessResult> {
-    const env: NodeJS.ProcessEnv = { ...process.env };
-    const secrets: string[] = [];
-    for (const [key, configured] of Object.entries(request.env ?? {})) {
-      const value =
-        typeof configured === "string" ? configured : configured.value;
-      env[key] = value;
-      if (typeof configured !== "string" && configured.secret)
-        secrets.push(value);
-    }
-
     if (request.outputPath)
       await mkdir(dirname(request.outputPath), { recursive: true });
     const log = request.outputPath
       ? await open(request.outputPath, "w")
       : undefined;
+
+    const usePty = request.usePty ?? process.stdout.isTTY === true;
+    if (usePty) {
+      const result = await this.runWithPty(request, log);
+      if (result) return result;
+    }
+    return await this.runWithPipes(request, log);
+  }
+
+  // Merges stdout/stderr into one stream (as a real terminal would); reports as "stdout".
+  private async runWithPty(
+    request: ProcessRequest,
+    log: FileHandle | undefined,
+  ): Promise<ProcessResult | undefined> {
+    let pty: typeof import("@lydell/node-pty");
+    try {
+      pty = await import("@lydell/node-pty");
+    } catch {
+      return undefined;
+    }
+
+    const { env, secrets } = resolveEnvironment(request);
+    let child: IPty;
+    try {
+      child = pty.spawn(request.command, [...(request.args ?? [])], {
+        cwd: request.cwd,
+        env,
+        cols: process.stdout.columns ?? 80,
+        rows: process.stdout.rows ?? 24,
+        name: "xterm-256color",
+      });
+    } catch {
+      // Unsupported platform/arch prebuild or allocation failure: fall back to pipes.
+      return undefined;
+    }
+
+    const redactor = new Redactor(secrets);
+    let timedOut = false;
+    let cancelled = false;
+    let settled = false;
+    let timer: NodeJS.Timeout | undefined;
+
+    return await new Promise<ProcessResult>((resolve) => {
+      const stop = (reason: "timeout" | "cancel") => {
+        if (settled) return;
+        if (reason === "timeout") timedOut = true;
+        else cancelled = true;
+        try {
+          child.kill();
+        } catch {
+          // already exited
+        }
+      };
+      const abort = () => stop("cancel");
+      if (request.signal) {
+        if (request.signal.aborted) abort();
+        else request.signal.addEventListener("abort", abort, { once: true });
+      }
+      if (request.timeoutMs !== undefined && request.timeoutMs >= 0) {
+        timer = setTimeout(() => stop("timeout"), request.timeoutMs);
+      }
+
+      child.onData((chunk) => {
+        const text = redactor.push(chunk);
+        if (text) {
+          request.onOutput?.(text, "stdout");
+          void log?.write(text);
+          process.stdout.write(text);
+        }
+      });
+      child.onExit(({ exitCode, signal }) => {
+        if (settled) return;
+        settled = true;
+        if (timer) clearTimeout(timer);
+        request.signal?.removeEventListener("abort", abort);
+        void (async () => {
+          const tail = redactor.flush();
+          if (tail) {
+            request.onOutput?.(tail, "stdout");
+            await log?.write(tail);
+            process.stdout.write(tail);
+          }
+          await log?.close();
+          resolve({
+            exitCode,
+            signal: signalNameFromNumber(signal),
+            timedOut,
+            cancelled,
+          });
+        })();
+      });
+    });
+  }
+
+  private async runWithPipes(
+    request: ProcessRequest,
+    log: FileHandle | undefined,
+  ): Promise<ProcessResult> {
+    const { env, secrets } = resolveEnvironment(request);
     const redactor = new Redactor(secrets);
     let timedOut = false;
     let cancelled = false;

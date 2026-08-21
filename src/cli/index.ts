@@ -45,6 +45,7 @@ interface CliOptions {
   maxIterations?: number;
   workingDirectory?: string;
   plain?: boolean;
+  pty?: boolean;
 }
 
 async function readConfig(
@@ -79,7 +80,12 @@ export function createProgram(
         Number(value),
       )
       .option("--working-directory <path>")
-      .option("--plain", "disable formatted status output");
+      .option("--plain", "disable formatted status output")
+      .option("--pty", "force-enable a pseudo-terminal for subprocess output")
+      .option(
+        "--no-pty",
+        "force-disable pseudo-terminal (auto-detected by default)",
+      );
 
   addWorkflowOptions(program.command("run")).action(
     async (options: CliOptions) => {

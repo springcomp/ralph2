@@ -122,6 +122,23 @@ describe("compileWorkflow", () => {
     expect(plan.agent).toBe("cli-agent");
   });
 
+  it("resolves pty per-command with the CLI-level default as a fallback", () => {
+    const configDir = resolve("/mock/project");
+    const docWithPty: V1WorkflowDocument = {
+      ...baseDoc,
+      harnesses: {
+        pi: { ...baseDoc.harnesses?.pi, pty: false },
+        other: { executable: "other" },
+      },
+    };
+
+    const plan = compileWorkflow(docWithPty, configDir, { pty: true });
+
+    expect(plan.ptyDefault).toBe(true);
+    expect(plan.harnesses.pi.pty).toBe(false);
+    expect(plan.harnesses.other.pty).toBe(true);
+  });
+
   it("compiles minimal workflow document with defaults and fallback values", () => {
     const minDoc: V1WorkflowDocument = {
       schemaVersion: 1,

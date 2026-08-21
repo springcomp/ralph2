@@ -42,6 +42,7 @@ export function workflowSchema(registry: ExtensionRegistry): JsonSchema {
       timeout: { type: ["string", "number"] },
       successExitCodes: { type: "array", items: { type: "number" } },
       output: { type: "object" },
+      pty: { type: "boolean" },
       onFailure: {
         type: "object",
         required: ["action", "task"],

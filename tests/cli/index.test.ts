@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createProgram } from "../../src/cli/index.js";
 import type { WorkflowPlan } from "../../src/config/compiler.js";
+import { WorkflowEngine } from "../../src/core/engine.js";
 import type { WorkflowEngineCallbacks } from "../../src/core/engine.js";
 import { WorkflowExitCodes } from "../../src/core/exit-codes.js";
 import { createExtensionRegistry } from "../../src/extensions/registry.js";
@@ -11,6 +12,7 @@ import { createExtensionRegistry } from "../../src/extensions/registry.js";
 vi.mock("../../src/core/engine.js", () => {
   return {
     WorkflowEngine: class MockWorkflowEngine {
+      static capturedPlans: WorkflowPlan[] = [];
       callbacks?: WorkflowEngineCallbacks;
       constructor(
         _runner: unknown,
@@ -20,7 +22,8 @@ vi.mock("../../src/core/engine.js", () => {
       ) {
         this.callbacks = callbacks;
       }
-      async run(_plan: WorkflowPlan, options: { plain?: boolean }) {
+      async run(plan: WorkflowPlan, options: { plain?: boolean }) {
+        MockWorkflowEngine.capturedPlans.push(plan);
         if (!options.plain) {
           if (this.callbacks?.onStatus) {
             await this.callbacks.onStatus("Running task 1");
@@ -56,7 +59,6 @@ describe("CLI Application", () => {
     consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     process.exitCode = undefined;
   });
-
   afterEach(async () => {
     consoleLogSpy.mockRestore();
     consoleErrorSpy.mockRestore();
@@ -393,6 +395,66 @@ harnesses:
       ]);
 
       expect(process.exitCode).toBe(WorkflowExitCodes.Complete);
+    });
+
+    it("propagates --pty/--no-pty overrides to the compiled plan", async () => {
+      const configPath = join(tmpDir, "valid.yaml");
+      const yamlContent = `
+schemaVersion: 1
+workspace: .
+maxIterations: 10
+tasks:
+  prd: PRD.md
+  progress: progress.txt
+  prompt: prompt.md
+defaults:
+  harness: pi
+harnesses:
+  pi:
+    executable: pi
+`;
+      await writeFile(configPath, yamlContent, "utf8");
+
+      await createProgram().parseAsync([
+        "node",
+        "ralph",
+        "run",
+        "--config",
+        configPath,
+        "--pty",
+      ]);
+      expect(
+        (
+          WorkflowEngine as unknown as { capturedPlans: WorkflowPlan[] }
+        ).capturedPlans.at(-1)?.ptyDefault,
+      ).toBe(true);
+
+      await createProgram().parseAsync([
+        "node",
+        "ralph",
+        "run",
+        "--config",
+        configPath,
+        "--no-pty",
+      ]);
+      expect(
+        (
+          WorkflowEngine as unknown as { capturedPlans: WorkflowPlan[] }
+        ).capturedPlans.at(-1)?.ptyDefault,
+      ).toBe(false);
+
+      await createProgram().parseAsync([
+        "node",
+        "ralph",
+        "run",
+        "--config",
+        configPath,
+      ]);
+      expect(
+        (
+          WorkflowEngine as unknown as { capturedPlans: WorkflowPlan[] }
+        ).capturedPlans.at(-1)?.ptyDefault,
+      ).toBeUndefined();
     });
 
     it("fails when configuration file does not exist", async () => {

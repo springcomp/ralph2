@@ -358,6 +358,7 @@ export class WorkflowEngine {
           : undefined,
         timeoutMs: stage.timeoutMs,
         signal,
+        usePty: stage.pty,
       });
     } catch {
       result = {

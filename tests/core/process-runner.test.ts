@@ -123,6 +123,65 @@ describe("RealProcessRunner", () => {
   });
 });
 
+let ptyAvailable = true;
+try {
+  await import("@lydell/node-pty");
+} catch {
+  ptyAvailable = false;
+}
+
+describe.skipIf(!ptyAvailable)("RealProcessRunner PTY mode", () => {
+  it("preserves ANSI escape sequences from the child process", async () => {
+    const output: string[] = [];
+    const script = nodeScript(
+      "process.stdout.write('\\u001b[31mred\\u001b[0m')",
+    );
+
+    const result = await runner.run({
+      ...script,
+      usePty: true,
+      onOutput: (text, stream) => output.push(`${stream}:${text}`),
+    });
+
+    expect(result.exitCode).toBe(0);
+    const combined = output.join("");
+    expect(combined).toContain("\u001b[31m");
+    expect(combined).toContain("red");
+    expect(output.every((entry) => entry.startsWith("stdout:"))).toBe(true);
+  });
+
+  it("reports timeout and cancellation under pty mode", async () => {
+    const script = nodeScript("setInterval(() => {}, 1000)");
+    await expect(
+      runner.run({ ...script, usePty: true, timeoutMs: 10 }),
+    ).resolves.toMatchObject({
+      timedOut: true,
+      cancelled: false,
+    });
+
+    const controller = new AbortController();
+    const cancelled = runner.run({
+      ...script,
+      usePty: true,
+      signal: controller.signal,
+    });
+    controller.abort();
+    await expect(cancelled).resolves.toMatchObject({
+      timedOut: false,
+      cancelled: true,
+    });
+  });
+
+  it("falls back to piped spawn when the pty cannot be allocated", async () => {
+    await expect(
+      runner.run({
+        command: "ralph-command-that-does-not-exist",
+        usePty: true,
+      }),
+    ).rejects.toThrow();
+  });
+});
+
 describe("FakeProcessRunner", () => {
   it("records requests and returns queued or default results", async () => {
     const queued: ProcessResult = {
