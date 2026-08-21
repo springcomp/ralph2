@@ -14,7 +14,11 @@
       "import": "./dist/cli/index.js"
     }
   },
-  "files": ["dist", "bootstrap", "samples"],
+  "files": [
+    "dist",
+    "bootstrap",
+    "samples"
+  ],
   "engines": {
     "node": ">=20"
   },
@@ -28,6 +32,7 @@
     "seed:bootstrap": "pnpm build && node scripts/seed-bootstrap.mjs"
   },
   "dependencies": {
+    "ajv": "^8.20.0",
     "commander": "^13.1.0",
     "yaml": "^2.7.0"
   },

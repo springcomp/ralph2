@@ -220,7 +220,7 @@ describe("validateWorkflow", () => {
     const paths = diagnostics.map((d) => d.path);
     expect(paths).toContain("preAgent[0]");
     expect(paths).toContain("preAgent[1].executable");
-    expect(paths).toContain("preAgent[1].arguments");
+    expect(paths).toContain("preAgent[1].arguments[1]");
     expect(paths).toContain("preAgent[1].arguments[2]");
     expect(paths).toContain("preAgent[1].timeout");
     expect(paths).toContain("preAgent[1].conditionalArguments[0].whenSet");

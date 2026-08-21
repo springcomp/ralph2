@@ -121,27 +121,39 @@ export function createProgram(
 
   const schema = program
     .command("schema")
-    .argument("[show]", "show the workflow schema")
-    .option("--config <path>", "workflow YAML path");
-  schema.action(async (show: string | undefined, options: CliOptions) => {
+    .argument("[show]", "show the workflow schema");
+  schema.action(async (show: string | undefined) => {
     try {
       if (show && show !== "show") {
         console.error(`Unknown subcommand '${show}'.`);
         process.exitCode = WorkflowExitCodes.InvalidConfiguration;
         return;
       }
-      if (options.config) {
-        await readConfig(options.config, options, extensions);
-        console.log("Configuration is valid.");
-      } else {
-        console.log(workflowSchemaYaml(extensions));
-      }
+      console.log(workflowSchemaYaml(extensions));
       process.exitCode = WorkflowExitCodes.Complete;
     } catch (error) {
       process.exitCode = WorkflowExitCodes.InvalidConfiguration;
       console.error(error instanceof Error ? error.message : String(error));
     }
   });
+
+  schema
+    .command("validate")
+    .requiredOption("--config <path>", "workflow YAML path")
+    .action(async (options: CliOptions) => {
+      try {
+        await readConfig(options.config, options, extensions);
+        console.log("Configuration is valid.");
+        process.exitCode = WorkflowExitCodes.Complete;
+      } catch (error) {
+        process.exitCode =
+          error instanceof WorkflowCompileError ||
+          error instanceof WorkflowValidationError
+            ? WorkflowExitCodes.InvalidConfiguration
+            : WorkflowExitCodes.ProcessFailure;
+        console.error(error instanceof Error ? error.message : String(error));
+      }
+    });
 
   program
     .command("init")

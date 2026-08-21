@@ -225,6 +225,9 @@ export class MarkdownTaskSource {
       const prd = parseDocument(
         await readFile(prdPath, "utf8").catch(() => ""),
       );
+      const lastLine = prd.lines.at(-1);
+      if (lastLine && lastLine.newline === "")
+        lastLine.newline = prd.defaultNewline;
       prd.lines.push({ text: selected.task.rawLine, newline: "" });
       source.lines[selected.task.lineIndex].text = source.lines[
         selected.task.lineIndex

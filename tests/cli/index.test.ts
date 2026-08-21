@@ -293,6 +293,7 @@ harnesses:
         "node",
         "ralph",
         "schema",
+        "validate",
         "--config",
         configPath,
       ]);
@@ -310,6 +311,7 @@ harnesses:
         "node",
         "ralph",
         "schema",
+        "validate",
         "--config",
         configPath,
       ]);

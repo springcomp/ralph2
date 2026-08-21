@@ -1,9 +1,12 @@
+import Ajv2020Module, { type ErrorObject } from "ajv/dist/2020.js";
+const Ajv2020 = Ajv2020Module as unknown as typeof Ajv2020Module.default;
 import { parse } from "yaml";
 import { PlaceholderRegistry } from "../core/placeholders.js";
 import {
   type ExtensionRegistry,
   defaultExtensionRegistry,
 } from "../extensions/registry.js";
+import { workflowSchema } from "./schema.js";
 import type { CommandDto, V1WorkflowDocument } from "./schema-v1.js";
 
 export interface Diagnostic {
@@ -16,8 +19,56 @@ export class WorkflowValidationError extends Error {
   }
 }
 const string = (v: unknown): v is string => typeof v === "string";
-const nonempty = (v: unknown): v is string => string(v) && v.trim().length > 0;
 const known = PlaceholderRegistry.names;
+
+/** Convert an Ajv JSON-Pointer instancePath (e.g. "/tasks/prd") into the
+ * dot/bracket path notation used throughout this codebase's diagnostics
+ * (e.g. "tasks.prd"). Falls back to "$" for the document root. */
+function toDiagnosticPath(instancePath: string): string {
+  if (!instancePath) return "$";
+  return instancePath
+    .split("/")
+    .slice(1)
+    .map((segment) => segment.replace(/~1/g, "/").replace(/~0/g, "~"))
+    .reduce<string>((path, segment) => {
+      if (/^\d+$/.test(segment)) return `${path}[${segment}]`;
+      return path ? `${path}.${segment}` : segment;
+    }, "");
+}
+
+function ajvDiagnostics(errors: ErrorObject[] | null | undefined): Diagnostic[] {
+  return (errors ?? [])
+    .filter((e) => e.keyword !== "oneOf" && e.keyword !== "anyOf")
+    .map((e) => {
+      const base = toDiagnosticPath(e.instancePath);
+      if (e.keyword === "required") {
+        const missing = (e.params as { missingProperty?: string })
+          .missingProperty;
+        return {
+          path: missing
+            ? base && base !== "$"
+              ? `${base}.${missing}`
+              : missing
+            : base,
+          message: "is required",
+        };
+      }
+      return { path: base, message: e.message ?? "is invalid" };
+    });
+}
+
+/** Runs schema-driven structural validation using Ajv against the same
+ * JSON Schema document exposed by `ralph schema show`. */
+export function validateWorkflowSchema(
+  document: unknown,
+  extensions: ExtensionRegistry = defaultExtensionRegistry,
+): Diagnostic[] {
+  const ajv = new Ajv2020({ allErrors: true, strict: false });
+  const validate = ajv.compile(workflowSchema(extensions));
+  validate(document);
+  return ajvDiagnostics(validate.errors);
+}
+
 function placeholders(path: string, values: unknown[], out: Diagnostic[]) {
   values.forEach((value, i) => {
     if (!string(value)) return;
@@ -29,92 +80,100 @@ function placeholders(path: string, values: unknown[], out: Diagnostic[]) {
         });
   });
 }
-function command(
-  path: string,
-  value: unknown,
-  out: Diagnostic[],
+
+/** Semantic checks that cannot be expressed as static JSON Schema:
+ * placeholder-token validation and cross-field references (e.g.
+ * `defaults.harness` naming a configured harness). Structural shape,
+ * required fields, and types are validated separately via Ajv against
+ * the schema document shared with `ralph schema show`. */
+function semanticDiagnostics(
+  document: V1WorkflowDocument,
   extensions: ExtensionRegistry,
-) {
-  if (!value || typeof value !== "object") {
-    out.push({ path, message: "must be an object" });
-    return;
-  }
-  const c = value as CommandDto;
-  if (!nonempty(c.executable))
-    out.push({ path: `${path}.executable`, message: "is required" });
-  if (
-    c.arguments !== undefined &&
-    (!Array.isArray(c.arguments) || c.arguments.some((x) => !string(x)))
-  )
-    out.push({ path: `${path}.arguments`, message: "must be a string array" });
-  placeholders(
-    `${path}.arguments`,
-    Array.isArray(c.arguments) ? c.arguments : [],
-    out,
-  );
-  if (
-    c.timeout !== undefined &&
-    (!string(c.timeout) || parseTimeout(c.timeout) <= 0)
-  )
-    out.push({ path: `${path}.timeout`, message: "must be greater than zero" });
-  if (
-    c.conditionalArguments !== undefined &&
-    !Array.isArray(c.conditionalArguments)
-  )
-    out.push({
-      path: `${path}.conditionalArguments`,
-      message: "must be an array",
-    });
-  for (const [i, g] of (Array.isArray(c.conditionalArguments)
-    ? c.conditionalArguments
-    : []
-  ).entries()) {
-    const x = g as { whenSet?: unknown; arguments?: unknown };
-    if (!nonempty(x.whenSet))
-      out.push({
-        path: `${path}.conditionalArguments[${i}].whenSet`,
-        message: "is required",
-      });
-    else if (!PlaceholderRegistry.conditionalNames.has(x.whenSet.toUpperCase()))
-      out.push({
-        path: `${path}.conditionalArguments[${i}].whenSet`,
-        message: `unknown conditional placeholder ${x.whenSet}`,
+): Diagnostic[] {
+  const d: Diagnostic[] = [];
+  const collectCommandPlaceholders = (path: string, value: unknown) => {
+    if (!value || typeof value !== "object") return;
+    const c = value as CommandDto;
+    if (c.timeout !== undefined && (!string(c.timeout) || parseTimeout(c.timeout) <= 0))
+      d.push({
+        path: `${path}.timeout`,
+        message: "must be greater than zero",
       });
     placeholders(
-      `${path}.conditionalArguments[${i}].arguments`,
-      Array.isArray(x.arguments) ? x.arguments : [],
-      out,
+      `${path}.arguments`,
+      Array.isArray(c.arguments) ? c.arguments : [],
+      d,
     );
+    for (const [i, g] of (Array.isArray(c.conditionalArguments)
+      ? c.conditionalArguments
+      : []
+    ).entries()) {
+      const x = g as { arguments?: unknown };
+      placeholders(
+        `${path}.conditionalArguments[${i}].arguments`,
+        Array.isArray(x.arguments) ? x.arguments : [],
+        d,
+      );
+    }
+    for (const [i, e] of (Array.isArray(c.environment)
+      ? c.environment
+      : []
+    ).entries()) {
+      const x = e as { value?: unknown };
+      if (string(x.value)) placeholders(`${path}.environment[${i}].value`, [x.value], d);
+    }
+  };
+
+  for (const [name, c] of Object.entries(document.harnesses ?? {}))
+    collectCommandPlaceholders(`harnesses.${name}`, c);
+  for (const [key, list] of [
+    ["preAgent", document.preAgent],
+    ["postAgent", document.postAgent],
+  ] as const)
+    for (const [i, c] of (list ?? []).entries())
+      collectCommandPlaceholders(`${key}[${i}]`, c);
+
+  const defs = document.defaults;
+  if (
+    defs &&
+    typeof defs === "object" &&
+    string(defs.harness) &&
+    document.harnesses &&
+    typeof document.harnesses === "object" &&
+    !Object.keys(document.harnesses).some(
+      (x) => x.toLowerCase() === defs.harness?.toString().toLowerCase(),
+    )
+  )
+    d.push({
+      path: "defaults.harness",
+      message: "must name configured harness",
+    });
+
+  const cont = document.continuation;
+  if (cont && typeof cont === "object") {
+    if (cont.kind === "generatedGoal" && typeof cont.producer === "string") {
+      const producer = cont.producer.trim();
+      if (producer && !extensions.producer(producer))
+        d.push({
+          path: "continuation.producer",
+          message: `unknown producer '${cont.producer}'`,
+        });
+    } else if (cont.kind === "generatedGoal" && cont.producer) {
+      collectCommandPlaceholders(
+        "continuation.producer",
+        cont.producer as CommandDto,
+      );
+    }
+    if (string(cont.nextTask))
+      placeholders("continuation.nextTask", [cont.nextTask], d);
   }
-  if (c.environment !== undefined && !Array.isArray(c.environment))
-    out.push({ path: `${path}.environment`, message: "must be an array" });
-  for (const [i, e] of (Array.isArray(c.environment)
-    ? c.environment
-    : []
-  ).entries()) {
-    const x = e as { name?: unknown; value?: unknown };
-    if (!nonempty(x.name))
-      out.push({
-        path: `${path}.environment[${i}].name`,
-        message: "is required",
-      });
-    if (!string(x.value))
-      out.push({
-        path: `${path}.environment[${i}].value`,
-        message: "is required",
-      });
-    else placeholders(`${path}.environment[${i}].value`, [x.value], out);
-  }
-  if (c.onFailure) {
-    if (!nonempty(c.onFailure.action) || !extensions.action(c.onFailure.action))
-      out.push({
-        path: `${path}.onFailure.action`,
-        message: "must name a registered action",
-      });
-    if (!nonempty(c.onFailure.task))
-      out.push({ path: `${path}.onFailure.task`, message: "is required" });
-  }
+
+  if (defs && typeof defs === "object" && string(defs.statusFormat))
+    placeholders("defaults.statusFormat", [defs.statusFormat], d);
+
+  return d;
 }
+
 export function parseWorkflowYaml(text: string): V1WorkflowDocument {
   try {
     const value = parse(text);
@@ -127,86 +186,16 @@ export function parseWorkflowYaml(text: string): V1WorkflowDocument {
     ]);
   }
 }
+
 export function validateWorkflow(
   document: V1WorkflowDocument,
   extensions: ExtensionRegistry = defaultExtensionRegistry,
 ): Diagnostic[] {
-  const d: Diagnostic[] = [];
-  if (document.schemaVersion !== 1)
-    d.push({ path: "schemaVersion", message: "must be 1" });
-  if (!nonempty(document.workspace))
-    d.push({ path: "workspace", message: "is required" });
-  if (typeof document.maxIterations !== "number" || document.maxIterations <= 0)
-    d.push({ path: "maxIterations", message: "must be greater than zero" });
-  const t = document.tasks;
-  if (!t || typeof t !== "object")
-    d.push({ path: "tasks", message: "is required" });
-  else
-    for (const key of ["prd", "progress", "prompt"])
-      if (!nonempty(t[key as keyof typeof t]))
-        d.push({ path: `tasks.${key}`, message: "is required" });
-  const defs = document.defaults;
-  if (!defs || typeof defs !== "object")
-    d.push({ path: "defaults", message: "is required" });
-  else if (!nonempty(defs.harness))
-    d.push({ path: "defaults.harness", message: "is required" });
-  else if (
-    !document.harnesses ||
-    !Object.keys(document.harnesses).some(
-      (x) => x.toLowerCase() === defs.harness?.toString().toLowerCase(),
-    )
-  )
-    d.push({
-      path: "defaults.harness",
-      message: "must name configured harness",
-    });
-  if (!document.harnesses || Object.keys(document.harnesses).length === 0)
-    d.push({ path: "harnesses", message: "must contain at least one harness" });
-  else
-    for (const [name, c] of Object.entries(document.harnesses))
-      command(`harnesses.${name}`, c, d, extensions);
-  for (const [key, list] of [
-    ["preAgent", document.preAgent],
-    ["postAgent", document.postAgent],
-  ] as const)
-    for (const [i, c] of (list ?? []).entries())
-      command(`${key}[${i}]`, c, d, extensions);
-  const cont = document.continuation;
-  if (cont) {
-    if (!nonempty(cont.kind))
-      d.push({ path: "continuation.kind", message: "is required" });
-    else if (!["blueprint", "generatedGoal"].includes(cont.kind))
-      d.push({
-        path: "continuation.kind",
-        message: "must be blueprint or generatedGoal",
-      });
-    if (cont.kind === "blueprint" && !nonempty(cont.source))
-      d.push({ path: "continuation.source", message: "is required" });
-    if (cont.kind === "generatedGoal") {
-      if (!cont.producer)
-        d.push({ path: "continuation.producer", message: "is required" });
-      else if (typeof cont.producer === "string") {
-        if (!cont.producer.trim())
-          d.push({ path: "continuation.producer", message: "is required" });
-        else if (!extensions.producer(cont.producer))
-          d.push({
-            path: "continuation.producer",
-            message: `unknown producer '${cont.producer}'`,
-          });
-      } else {
-        command("continuation.producer", cont.producer, d, extensions);
-      }
-      if (!cont.completeWhen)
-        d.push({ path: "continuation.completeWhen", message: "is required" });
-      if (!nonempty(cont.nextTask))
-        d.push({ path: "continuation.nextTask", message: "is required" });
-      else placeholders("continuation.nextTask", [cont.nextTask], d);
-    }
-  }
-  if (defs?.statusFormat)
-    placeholders("defaults.statusFormat", [defs.statusFormat], d);
-  return d;
+  const structural = validateWorkflowSchema(document, extensions);
+  const semantic = semanticDiagnostics(document, extensions);
+  return [...structural, ...semantic];
 }
+
 export function parseTimeout(value: unknown): number {
   if (value === undefined || value === null || value === "") return 300000;
   if (!string(value)) return 0;

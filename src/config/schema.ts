@@ -26,7 +26,18 @@ export function workflowSchema(registry: ExtensionRegistry): JsonSchema {
           },
         },
       },
-      environment: { type: "array" },
+      environment: {
+        type: "array",
+        items: {
+          type: "object",
+          required: ["name", "value"],
+          properties: {
+            name: { type: "string", minLength: 1 },
+            value: { type: "string" },
+            secret: { type: "boolean" },
+          },
+        },
+      },
       failurePolicy: { enum: ["stop", "continue"] },
       timeout: { type: ["string", "number"] },
       successExitCodes: { type: "array", items: { type: "number" } },
@@ -76,8 +87,8 @@ export function workflowSchema(registry: ExtensionRegistry): JsonSchema {
         required: ["harness"],
         properties: {
           harness: { type: "string", minLength: 1 },
-          model: { type: "string" },
-          agent: { type: "string" },
+          model: { type: ["string", "null"] },
+          agent: { type: ["string", "null"] },
           statusFormat: { type: "string" },
         },
       },
@@ -88,18 +99,28 @@ export function workflowSchema(registry: ExtensionRegistry): JsonSchema {
       },
       preAgent: { type: "array", items: { $ref: "#/$defs/command" } },
       postAgent: { type: "array", items: { $ref: "#/$defs/command" } },
-      verification: { type: "object" },
+      verification: {
+        type: "object",
+        properties: {
+          requireTaskChecked: { type: "boolean" },
+          retries: { type: "number" },
+          prompt: { type: "string" },
+        },
+      },
       continuation: {
         type: "object",
         properties: {
           kind: { enum: ["blueprint", "generatedGoal"] },
-          source: { type: "string" },
+          source: { type: "string", minLength: 1 },
+          seedPrdFromSource: { type: "boolean" },
+          completeWhenSourceExhausted: { type: "boolean" },
           producer:
             registry.producers.length > 0
               ? {
                   oneOf: [
                     {
                       type: "string",
+                      minLength: 1,
                       enum: registry.producers.map((p) => p.name),
                     },
                     { $ref: "#/$defs/command" },
@@ -109,13 +130,23 @@ export function workflowSchema(registry: ExtensionRegistry): JsonSchema {
           completeWhen: {
             type: "object",
             properties: {
-              kind: { enum: extensionNames("predicates") },
+              kind: { type: "string", minLength: 1 },
               path: { type: "string" },
               check: { $ref: "#/$defs/command" },
             },
           },
-          nextTask: { type: "string" },
+          nextTask: { type: "string", minLength: 1 },
         },
+        allOf: [
+          {
+            if: { properties: { kind: { const: "blueprint" } } },
+            then: { required: ["source"] },
+          },
+          {
+            if: { properties: { kind: { const: "generatedGoal" } } },
+            then: { required: ["producer", "completeWhen", "nextTask"] },
+          },
+        ],
       },
     },
     $defs: {
