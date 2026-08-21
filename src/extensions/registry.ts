@@ -47,6 +47,7 @@ import { acceptedExitCodePredicate } from "./predicates/accepted-exit-code.js";
 import { fileExistsPredicate } from "./predicates/file-exists.js";
 import { fileMissingPredicate } from "./predicates/file-missing.js";
 import { goalProducerRegistration } from "./producers/goalProducer.js";
+import { blueprintTemplateRegistration } from "./templates/blueprint.js";
 import { goalTemplateRegistration } from "./templates/goal.js";
 
 const actions: readonly ActionRegistration[] = [scheduleTaskAction];
@@ -59,6 +60,7 @@ const predicates: readonly PredicateRegistration[] = [
 
 const builtinTemplates: readonly TemplateRegistration[] = [
   goalTemplateRegistration,
+  blueprintTemplateRegistration,
 ];
 
 const builtinProducers: readonly ProducerRegistration[] = [

@@ -9,6 +9,10 @@ describe("extension registry - built-in templates", () => {
     expect(defaultExtensionRegistry.template("goal")).toBeDefined();
   });
 
+  it("registers the blueprint template", () => {
+    expect(defaultExtensionRegistry.template("blueprint")).toBeDefined();
+  });
+
   it("goal template has required files", () => {
     const reg = defaultExtensionRegistry.template("goal");
     expect(reg?.files.get("ralph.yaml")).toContain("generatedGoal");
@@ -27,9 +31,26 @@ describe("extension registry - built-in templates", () => {
     expect(yaml).toContain("GOAL-{ITERATION:000}");
   });
 
+  it("blueprint template reuses goal files and configures source seeding", () => {
+    const goal = defaultExtensionRegistry.template("goal");
+    const blueprint = defaultExtensionRegistry.template("blueprint");
+    expect(blueprint?.files.get("ralph.prompt.md")).toBe(
+      goal?.files.get("ralph.prompt.md"),
+    );
+    expect(blueprint?.files.get("progress.txt")).toBe(
+      goal?.files.get("progress.txt"),
+    );
+    expect(blueprint?.files.get("ralph.yaml")).toContain("kind: blueprint");
+    expect(blueprint?.files.get("ralph.yaml")).toContain(
+      "completeWhenSourceExhausted: true",
+    );
+    expect(blueprint?.files.has("BLUEPRINT.md")).toBe(true);
+  });
+
   it("exposes goal in templates collection", () => {
     const names = defaultExtensionRegistry.templates.map((t) => t.name);
     expect(names).toContain("goal");
+    expect(names).toContain("blueprint");
   });
 
   it("looks up template case-insensitively", () => {
