@@ -1,4 +1,5 @@
 import { isAbsolute, normalize, resolve } from "node:path";
+import { parseEnvAssignment } from "../core/env-file.js";
 import {
   type ExtensionRegistry,
   defaultExtensionRegistry,
@@ -31,6 +32,7 @@ export interface StagePlan {
   arguments: string[];
   conditionalArguments: { whenSet: string; arguments: string[] }[];
   environment: EnvironmentVariablePlan[];
+  envFilePath?: string;
   timeoutMs: number;
   successExitCodes: number[];
   outputPath?: string;
@@ -51,6 +53,8 @@ export interface TaskFileSet {
 }
 export interface WorkflowPlan {
   workspace: string;
+  environment?: EnvironmentVariablePlan[];
+  envFilePath?: string;
   maxIterations: number;
   tasks: TaskFileSet;
   harnesses: Record<string, StagePlan>;
@@ -94,6 +98,27 @@ const path = (workspace: string, value: unknown): string | undefined =>
     : normalize(
         isAbsolute(text(value)) ? text(value) : resolve(workspace, text(value)),
       );
+const toEnvironmentPlan = (
+  entries: readonly (
+    | import("./schema-v1.js").EnvironmentVariableDto
+    | string
+  )[],
+): EnvironmentVariablePlan[] =>
+  entries.flatMap((entry) => {
+    if (typeof entry === "string") {
+      const parsed = parseEnvAssignment(entry);
+      return parsed
+        ? [{ name: parsed.name, value: parsed.value, secret: false }]
+        : [];
+    }
+    return [
+      {
+        name: text(entry.name),
+        value: text(entry.value),
+        secret: entry.secret === true,
+      },
+    ];
+  });
 function resolveProducerDto(
   producer: string | import("./schema-v1.js").CommandDto | null | undefined,
   extensions: ExtensionRegistry,
@@ -124,12 +149,9 @@ function stage(
         }))
       : [],
     environment: Array.isArray(dto.environment)
-      ? dto.environment.map((e) => ({
-          name: text(e.name),
-          value: text(e.value),
-          secret: e.secret === true,
-        }))
+      ? toEnvironmentPlan(dto.environment)
       : [],
+    envFilePath: path(workspace, dto.envFile),
     timeoutMs: parseTimeout(dto.timeout),
     successExitCodes:
       Array.isArray(dto.successExitCodes) && dto.successExitCodes.length
@@ -208,6 +230,10 @@ export function compileWorkflow(
     : undefined;
   return {
     workspace,
+    environment: Array.isArray(document.environment)
+      ? toEnvironmentPlan(document.environment)
+      : [],
+    envFilePath: path(workspace, document.envFile),
     maxIterations: options.maxIterations ?? Number(document.maxIterations),
     tasks: {
       prd: path(workspace, tasks.prd) ?? "",

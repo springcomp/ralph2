@@ -13,6 +13,7 @@ Ralph automates AI coding harnesses (like Pi or Copilot) by running them in an i
 - **Safe Process Execution**: Pure `argv` array dispatch prevents shell injection and quoting anomalies. Full process-tree termination on timeouts and cancellation.
 - **State Integrity**: Workspace and atomic file locks prevent race conditions and corruption across iterations.
 - **Model & Agent Fallback Hierarchy**: Resolves models and agents dynamically (`Task Metadata > CLI Options > YAML Defaults`).
+- **Environment Variables**: Commands can use inline variables or a docker-compose-style `envFile`; workflow-level values are inherited by every stage.
 
 ---
 
@@ -52,6 +53,11 @@ echo "- [ ] TASK-001 - Create a simple node index.js script that prints \"hello,
 ```bash
 ralph run --config ~/my/.agentic/ralph.yaml
 ```
+
+Environment configuration supports root-level `envFile` and `environment`, plus the same
+properties on command stages. Precedence is global file, global inline, stage file, then
+stage inline. Env files use `KEY=VALUE` lines with blank lines/comments ignored and optional
+single or double quotes.
 
 ---
 

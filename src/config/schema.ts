@@ -7,6 +7,23 @@ export interface JsonSchema {
 }
 
 export function workflowSchema(registry: ExtensionRegistry): JsonSchema {
+  const environmentItem = {
+    oneOf: [
+      {
+        type: "object",
+        required: ["name", "value"],
+        properties: {
+          name: { type: "string", minLength: 1 },
+          value: { type: "string" },
+          secret: { type: "boolean" },
+        },
+      },
+      {
+        type: "string",
+        pattern: "^[A-Za-z_][A-Za-z0-9_]*=.*$",
+      },
+    ],
+  };
   const extensionNames = (kind: "actions" | "predicates") =>
     registry[kind].map((registration) => registration.name);
   const command: JsonSchema = {
@@ -28,16 +45,9 @@ export function workflowSchema(registry: ExtensionRegistry): JsonSchema {
       },
       environment: {
         type: "array",
-        items: {
-          type: "object",
-          required: ["name", "value"],
-          properties: {
-            name: { type: "string", minLength: 1 },
-            value: { type: "string" },
-            secret: { type: "boolean" },
-          },
-        },
+        items: environmentItem,
       },
+      envFile: { type: "string", minLength: 1 },
       failurePolicy: { enum: ["stop", "continue"] },
       timeout: { type: ["string", "number"] },
       successExitCodes: { type: "array", items: { type: "number" } },
@@ -78,6 +88,8 @@ export function workflowSchema(registry: ExtensionRegistry): JsonSchema {
     properties: {
       schemaVersion: { const: 1 },
       workspace: { type: "string", minLength: 1 },
+      envFile: { type: "string", minLength: 1 },
+      environment: { type: "array", items: environmentItem },
       maxIterations: { type: "number", exclusiveMinimum: 0 },
       tasks: {
         type: "object",

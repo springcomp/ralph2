@@ -11,6 +11,11 @@ describe("compileWorkflow", () => {
   const baseDoc: V1WorkflowDocument = {
     schemaVersion: 1,
     workspace: "work-dir",
+    envFile: ".env",
+    environment: [
+      "GLOBAL={TASK}",
+      { name: "GLOBAL2", value: "value", secret: false },
+    ],
     maxIterations: 20,
     tasks: {
       prd: "tasks/PRD.md",
@@ -38,6 +43,7 @@ describe("compileWorkflow", () => {
           { name: "API_KEY", value: "secret123", secret: true },
           { name: "DEBUG", value: "true", secret: false },
         ],
+        envFile: ".agentic/harness.env",
         timeout: "15m",
         successExitCodes: [0, 1],
         output: { combined: ".agentic/out.log" },
@@ -81,6 +87,11 @@ describe("compileWorkflow", () => {
     const plan = compileWorkflow(baseDoc, configDir);
 
     expect(plan.workspace).toBe(resolve("/mock/project/work-dir"));
+    expect(plan.envFilePath).toBe(resolve("/mock/project/work-dir/.env"));
+    expect(plan.environment).toEqual([
+      { name: "GLOBAL", value: "{TASK}", secret: false },
+      { name: "GLOBAL2", value: "value", secret: false },
+    ]);
     expect(plan.maxIterations).toBe(20);
     expect(plan.defaultHarness).toBe("pi");
     expect(plan.model).toBe("test-model");
@@ -96,6 +107,9 @@ describe("compileWorkflow", () => {
       { name: "API_KEY", value: "secret123", secret: true },
       { name: "DEBUG", value: "true", secret: false },
     ]);
+    expect(plan.harnesses.pi.envFilePath).toBe(
+      resolve("/mock/project/work-dir/.agentic/harness.env"),
+    );
     expect(plan.preAgent).toHaveLength(1);
     expect(plan.preAgent[0].name).toBe("pre-step");
     expect(plan.postAgent).toHaveLength(1);

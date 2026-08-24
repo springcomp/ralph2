@@ -114,6 +114,61 @@ describe("WorkflowEngine", () => {
     expect(events.some((e) => e.type === "task.started")).toBe(true);
   });
 
+  it("merges global and stage environment with stage inline values winning", async () => {
+    await writeFile(prdPath, "- [ ] TASK-001 - Implement feature\n", "utf8");
+    const envPath = join(tmpDir, ".env");
+    const stageEnvPath = join(tmpDir, ".stage.env");
+    await writeFile(envPath, "FROM_FILE=global\nSHARED=global\n", "utf8");
+    await writeFile(stageEnvPath, "SHARED=stage-file\n", "utf8");
+    const requests: ProcessRequest[] = [];
+    const runner = {
+      async run(req: ProcessRequest): Promise<ProcessResult> {
+        requests.push(req);
+        await writeFile(
+          prdPath,
+          "- [x] TASK-001 - Implement feature\n",
+          "utf8",
+        );
+        return { exitCode: 0, signal: null, timedOut: false, cancelled: false };
+      },
+    };
+    const engine = new WorkflowEngine(runner);
+    await engine.run(
+      createPlan({
+        envFilePath: envPath,
+        environment: [
+          { name: "SHARED", value: "global-inline", secret: false },
+        ],
+        harnesses: {
+          pi: createStagePlan({
+            envFilePath: stageEnvPath,
+            environment: [
+              { name: "SHARED", value: "stage-inline", secret: false },
+            ],
+          }),
+        },
+      }),
+    );
+    expect(requests[0].env).toMatchObject({
+      FROM_FILE: { value: "global" },
+      SHARED: { value: "stage-inline" },
+    });
+  });
+
+  it("fails cleanly when an env file is missing", async () => {
+    await writeFile(prdPath, "- [ ] TASK-001 - Implement feature\n", "utf8");
+    const runner = new FakeProcessRunner();
+    const result = await new WorkflowEngine(runner).run(
+      createPlan({
+        harnesses: {
+          pi: createStagePlan({ envFilePath: join(tmpDir, "missing.env") }),
+        },
+      }),
+    );
+    expect(result.status).toBe("processFailure");
+    expect(runner.requests).toHaveLength(0);
+  });
+
   it("forwards the stage's pty setting to the process request", async () => {
     await writeFile(prdPath, "- [ ] TASK-001 - Implement feature\n", "utf8");
     const runner = new FakeProcessRunner();

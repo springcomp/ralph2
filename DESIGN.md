@@ -70,6 +70,13 @@ Ralph performs variable expansion on command executables, argument lists, enviro
 - `conditionalArguments`: Appends argument groups only when the placeholder specified in `whenSet` resolves to a non-empty string.
 - Unknown placeholders trigger validation failure before execution begins.
 
+#### Environment Variables
+
+The workflow root and each command may define `envFile` and inline `environment` entries.
+The single env file path is resolved relative to the workspace and uses compose-style
+`KEY=VALUE` syntax. Runtime precedence is global file, global inline, stage file, then
+stage inline; later values override earlier ones.
+
 ---
 
 ### 2. Markdown Task Source & Concurrency Locks (`src/core/task-source.ts`, `src/core/locks.ts`)

@@ -1,13 +1,14 @@
 import Ajv2020Module, { type ErrorObject } from "ajv/dist/2020.js";
 const Ajv2020 = Ajv2020Module as unknown as typeof Ajv2020Module.default;
 import { parse } from "yaml";
+import { parseEnvAssignment } from "../core/env-file.js";
 import { PlaceholderRegistry } from "../core/placeholders.js";
 import {
   type ExtensionRegistry,
   defaultExtensionRegistry,
 } from "../extensions/registry.js";
-import { workflowSchema } from "./schema.js";
 import type { CommandDto, V1WorkflowDocument } from "./schema-v1.js";
+import { workflowSchema } from "./schema.js";
 
 export interface Diagnostic {
   path: string;
@@ -131,11 +132,22 @@ function semanticDiagnostics(
       ? c.environment
       : []
     ).entries()) {
-      const x = e as { value?: unknown };
-      if (string(x.value))
-        placeholders(`${path}.environment[${i}].value`, [x.value], d);
+      const value =
+        typeof e === "string"
+          ? parseEnvAssignment(e)?.value
+          : (e as { value?: unknown }).value;
+      if (string(value))
+        placeholders(`${path}.environment[${i}].value`, [value], d);
     }
   };
+
+  for (const [i, e] of (document.environment ?? []).entries()) {
+    const value =
+      typeof e === "string"
+        ? parseEnvAssignment(e)?.value
+        : (e as { value?: unknown })?.value;
+    if (string(value)) placeholders(`environment[${i}].value`, [value], d);
+  }
 
   for (const [name, c] of Object.entries(document.harnesses ?? {}))
     collectCommandPlaceholders(`harnesses.${name}`, c);

@@ -5,6 +5,7 @@ import {
   type ExtensionRegistry,
   defaultExtensionRegistry,
 } from "../extensions/registry.js";
+import { loadEnvFile } from "./env-file.js";
 import { WorkflowExitCodes } from "./exit-codes.js";
 import { WorkspaceLock } from "./locks.js";
 import {
@@ -144,6 +145,7 @@ export class WorkflowEngine {
 
         for (const stage of plan.preAgent) {
           const failure = await this.runStage(
+            plan,
             stage,
             values,
             workspace,
@@ -169,6 +171,7 @@ export class WorkflowEngine {
         }
         if (remediationScheduled) continue;
         let run = await this.runStage(
+          plan,
           harness,
           values,
           workspace,
@@ -179,6 +182,7 @@ export class WorkflowEngine {
         if (!run.success) return this.failure(run.result, iteration, events);
         for (const stage of plan.postAgent) {
           run = await this.runStage(
+            plan,
             stage,
             values,
             workspace,
@@ -227,6 +231,7 @@ export class WorkflowEngine {
               verifyValues = { ...verifyValues, prompt: promptPath };
             }
             run = await this.runStage(
+              plan,
               harness,
               verifyValues,
               workspace,
@@ -326,6 +331,7 @@ export class WorkflowEngine {
     return this.source.isTaskUnchecked(path, target);
   }
   private async runStage(
+    plan: WorkflowPlan,
     stage: StagePlan,
     values: PlaceholderContext,
     workspace: string,
@@ -334,12 +340,32 @@ export class WorkflowEngine {
     signal?: AbortSignal,
   ) {
     const args = this.expander.expandArguments(stage, values);
-    const env = Object.fromEntries(
-      stage.environment.map((x) => [
-        x.name,
-        { value: this.expander.expand(x.value, values), secret: x.secret },
-      ]),
-    );
+    let env: Record<string, { value: string; secret: boolean }>;
+    let envLoadFailed = false;
+    try {
+      const merged: Record<string, { value: string; secret: boolean }> = {};
+      const addFile = async (filePath: string | undefined) => {
+        if (!filePath) return;
+        for (const [name, value] of Object.entries(await loadEnvFile(filePath)))
+          merged[name] = { value, secret: false };
+      };
+      await addFile(plan.envFilePath);
+      for (const x of plan.environment ?? [])
+        merged[x.name] = {
+          value: this.expander.expand(x.value, values),
+          secret: x.secret,
+        };
+      await addFile(stage.envFilePath);
+      for (const x of stage.environment ?? [])
+        merged[x.name] = {
+          value: this.expander.expand(x.value, values),
+          secret: x.secret,
+        };
+      env = merged;
+    } catch {
+      envLoadFailed = true;
+      env = {};
+    }
     await emit({
       type: "stage.started",
       iteration,
@@ -348,18 +374,27 @@ export class WorkflowEngine {
     });
     let result: ProcessResult;
     try {
-      result = await this.runner.run({
-        command: this.expander.expand(stage.executable, values),
-        args,
-        cwd: workspace,
-        env,
-        outputPath: stage.outputPath
-          ? this.expander.expand(stage.outputPath, values)
-          : undefined,
-        timeoutMs: stage.timeoutMs,
-        signal,
-        usePty: stage.pty,
-      });
+      if (envLoadFailed) {
+        result = {
+          exitCode: null,
+          signal: null,
+          timedOut: false,
+          cancelled: false,
+        };
+      } else {
+        result = await this.runner.run({
+          command: this.expander.expand(stage.executable, values),
+          args,
+          cwd: workspace,
+          env,
+          outputPath: stage.outputPath
+            ? this.expander.expand(stage.outputPath, values)
+            : undefined,
+          timeoutMs: stage.timeoutMs,
+          signal,
+          usePty: stage.pty,
+        });
+      }
     } catch {
       result = {
         exitCode: null,
@@ -564,6 +599,7 @@ export class WorkflowEngine {
     )
       return null;
     const produced = await this.runStage(
+      plan,
       c.producer,
       values,
       plan.workspace,
@@ -590,6 +626,7 @@ export class WorkflowEngine {
       expand: (value) => this.expander.expand(value, values),
       runStage: (stage) =>
         this.runStage(
+          plan,
           stage,
           values,
           plan.workspace,

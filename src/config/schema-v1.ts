@@ -1,6 +1,8 @@
 export interface V1WorkflowDocument {
   schemaVersion?: unknown;
   workspace?: unknown;
+  envFile?: unknown;
+  environment?: (EnvironmentVariableDto | string)[] | null;
   maxIterations?: unknown;
   tasks?: TaskFilesDto | null;
   defaults?: DefaultsDto | null;
@@ -29,7 +31,8 @@ export interface CommandDto {
   executable?: unknown;
   arguments?: unknown;
   conditionalArguments?: unknown;
-  environment?: unknown;
+  environment?: (EnvironmentVariableDto | string)[] | null;
+  envFile?: unknown;
   failurePolicy?: unknown;
   timeout?: unknown;
   successExitCodes?: unknown;
