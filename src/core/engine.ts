@@ -5,6 +5,7 @@ import {
   type ExtensionRegistry,
   defaultExtensionRegistry,
 } from "../extensions/registry.js";
+import { evaluateCircuitBreaker } from "./circuit-breaker.js";
 import { loadEnvFile } from "./env-file.js";
 import { WorkflowExitCodes } from "./exit-codes.js";
 import { WorkspaceLock } from "./locks.js";
@@ -112,7 +113,25 @@ export class WorkflowEngine {
             events,
             options,
           );
-          if (continuation) return continuation;
+          if (continuation) {
+            if (continuation.status === "complete" && plan.trigger) {
+              const fired = await this.awaitTrigger(
+                plan,
+                iteration,
+                emit,
+                options,
+              );
+              if (fired === "canceled")
+                return this.result(
+                  "canceled",
+                  "Canceled.",
+                  iteration - 1,
+                  events,
+                );
+              if (fired === "fired") continue;
+            }
+            return continuation;
+          }
           continue;
         }
         const original = task;
@@ -181,6 +200,7 @@ export class WorkflowEngine {
           options.signal,
         );
         if (!run.success) return this.failure(run.result, iteration, events);
+        let lastFailure: { stage: string; exitCode: number | null } | undefined;
         for (const stage of plan.postAgent) {
           run = await this.runStage(
             plan,
@@ -192,6 +212,7 @@ export class WorkflowEngine {
             options.signal,
           );
           if (!run.success) {
+            lastFailure = { stage: stage.name, exitCode: run.result.exitCode };
             const handled = await this.handleFailure(
               plan,
               stage,
@@ -210,6 +231,14 @@ export class WorkflowEngine {
               return this.failure(run.result, iteration, events);
           }
         }
+        const tripped = await this.runCircuitBreakers(
+          plan,
+          iteration,
+          values,
+          lastFailure,
+          emit,
+        );
+        if (tripped) return this.result("blocked", tripped, iteration, events);
         if (remediationScheduled) continue;
         let originalUnchecked = false;
         try {
@@ -473,10 +502,7 @@ export class WorkflowEngine {
     if (stage.failureAction || stage.failureTask) {
       let remediation: { depth: number; rootId: string };
       try {
-        remediation = await this.source.remediationDepth(
-          plan.tasks.prd,
-          task,
-        );
+        remediation = await this.source.remediationDepth(plan.tasks.prd, task);
       } catch (error) {
         return this.result("blocked", this.message(error), iteration, []);
       }
@@ -556,6 +582,140 @@ export class WorkflowEngine {
   }
   private message(error: unknown): string {
     return error instanceof Error ? error.message : String(error);
+  }
+
+  private async awaitTrigger(
+    plan: WorkflowPlan,
+    iteration: number,
+    emit: (e: WorkflowEvent) => Promise<void>,
+    options: WorkflowOptions,
+  ): Promise<"fired" | "terminated" | "canceled"> {
+    const config = plan.trigger;
+    if (!config) return "terminated";
+    if (options.signal?.aborted) return "canceled";
+    const registration = this.extensions.trigger(config.kind);
+    if (!registration) {
+      await emit({
+        type: "trigger.error",
+        iteration,
+        message: `Trigger '${config.kind}' is not registered.`,
+      });
+      return "terminated";
+    }
+    await emit({
+      type: "trigger.waiting",
+      iteration,
+      message: `Idle; waiting on trigger '${config.kind}'.`,
+    });
+    let signal: import("../extensions/types.js").TriggerSignal | null;
+    try {
+      signal = await registration.callback({
+        kind: config.kind,
+        source: config.source,
+        pollIntervalMs: config.pollIntervalMs,
+        workspace: plan.workspace,
+        taskSource: this.source,
+        expand: (value) =>
+          this.expander.expand(value, {
+            workspace: plan.workspace,
+            iteration,
+          } as PlaceholderContext),
+        emit: async (event) => {
+          await emit(event as WorkflowEvent);
+        },
+        signal: options.signal,
+      });
+    } catch (error) {
+      await emit({
+        type: "trigger.error",
+        iteration,
+        message: this.message(error),
+      });
+      return "terminated";
+    }
+    if (options.signal?.aborted) return "canceled";
+    if (!signal) {
+      await emit({
+        type: "trigger.terminated",
+        iteration,
+        message: "Trigger will not fire again; completing.",
+      });
+      return "terminated";
+    }
+    await emit({
+      type: "trigger.fired",
+      iteration,
+      message: signal.reason,
+    });
+    return "fired";
+  }
+
+  private async runCircuitBreakers(
+    plan: WorkflowPlan,
+    iteration: number,
+    values: PlaceholderContext,
+    lastFailure: { stage: string; exitCode: number | null } | undefined,
+    emit: (e: WorkflowEvent) => Promise<void>,
+  ): Promise<string | null> {
+    const checks = plan.circuitBreaker?.checks;
+    if (!checks || checks.length === 0) return null;
+    for (const check of checks) {
+      const registration = this.extensions.circuitBreaker(check.kind);
+      if (!registration) {
+        await emit({
+          type: "circuitBreaker.error",
+          iteration,
+          message: `Circuit breaker check '${check.kind}' is not registered.`,
+        });
+        continue;
+      }
+      let signature: string | null;
+      try {
+        signature = await registration.callback({
+          kind: check.kind,
+          workspace: plan.workspace,
+          iteration,
+          expand: (value) => this.expander.expand(value, values),
+          lastFailure,
+        });
+      } catch (error) {
+        await emit({
+          type: "circuitBreaker.error",
+          iteration,
+          message: this.message(error),
+        });
+        continue;
+      }
+      const evaluation = await evaluateCircuitBreaker(
+        plan.workspace,
+        check.kind,
+        check.threshold,
+        signature,
+      );
+      if (evaluation.signature === null) {
+        await emit({
+          type: "circuitBreaker.reset",
+          iteration,
+          message: `Circuit breaker '${check.kind}' reset.`,
+        });
+        continue;
+      }
+      if (!evaluation.tripped) {
+        await emit({
+          type: "circuitBreaker.streak",
+          iteration,
+          message: `Circuit breaker '${check.kind}' streak ${evaluation.streak}/${check.threshold} (${evaluation.signature}).`,
+        });
+        continue;
+      }
+      await emit({
+        type: "circuitBreaker.tripped",
+        iteration,
+        message: `Circuit breaker '${check.kind}' tripped after ${evaluation.streak} consecutive occurrences of '${evaluation.signature}' (threshold ${check.threshold}).`,
+      });
+      return `Circuit breaker '${check.kind}' tripped: '${evaluation.signature}' repeated ${evaluation.streak} times (threshold ${check.threshold}).`;
+    }
+    return null;
   }
 
   private async continueWhenEmpty(

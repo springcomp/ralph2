@@ -14,11 +14,13 @@ import { WorkflowExitCodes } from "../core/exit-codes.js";
 import { RealProcessRunner } from "../core/process-runner.js";
 import {
   type ActionRegistration,
+  type ExtensionProperty,
   type ExtensionRegistration,
   type ExtensionRegistry,
   type PredicateRegistration,
   type ProducerRegistration,
   type TemplateRegistration,
+  type TriggerRegistration,
   defaultExtensionRegistry,
 } from "../extensions/registry.js";
 import { getTemplate, templates } from "../templates/template-registry.js";
@@ -35,6 +37,7 @@ export type {
   ExtensionRegistry,
   TemplateRegistration,
   ProducerRegistration,
+  TriggerRegistration,
 } from "../extensions/registry.js";
 
 interface CliOptions {
@@ -255,9 +258,17 @@ export function createProgram(
   addShowCommand("predicates", () => {
     console.log(extensions.predicates.map((x) => x.name).join("\n"));
   });
+  addShowCommand("triggers", () => {
+    console.log(extensions.triggers.map((x) => x.name).join("\n"));
+  });
+  addShowCommand("circuitBreakers", () => {
+    console.log(extensions.circuitBreakers.map((x) => x.name).join("\n"));
+  });
 
   const explain = program.command("explain");
-  const addExtensionCommand = (kind: "action" | "predicate") => {
+  const addExtensionCommand = (
+    kind: "action" | "predicate" | "trigger" | "circuitBreaker",
+  ) => {
     const command = explain
       .command(kind)
       .argument("<name>")
@@ -265,7 +276,11 @@ export function createProgram(
         const registration =
           kind === "action"
             ? extensions.action(name)
-            : extensions.predicate(name);
+            : kind === "predicate"
+              ? extensions.predicate(name)
+              : kind === "trigger"
+                ? extensions.trigger(name)
+                : extensions.circuitBreaker(name);
         if (!registration) {
           console.error(`Unknown ${kind} '${name}'.`);
           process.exitCode = WorkflowExitCodes.InvalidConfiguration;
@@ -278,12 +293,18 @@ export function createProgram(
 
   addExtensionCommand("action");
   addExtensionCommand("predicate");
+  addExtensionCommand("trigger");
+  addExtensionCommand("circuitBreaker");
   return program;
 }
 
 function formatExtensionHelp(
   kind: string,
-  registration: ExtensionRegistration,
+  registration: {
+    name: string;
+    description: string;
+    properties: readonly ExtensionProperty[];
+  },
 ): string {
   const properties = registration.properties.length
     ? registration.properties

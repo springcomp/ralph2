@@ -12,6 +12,8 @@ export interface V1WorkflowDocument {
   postAgent?: CommandDto[] | null;
   verification?: VerificationDto | null;
   continuation?: ContinuationDto | null;
+  trigger?: TriggerDto | null;
+  circuitBreaker?: CircuitBreakerDto | null;
 }
 export interface TaskFilesDto {
   format?: unknown;
@@ -65,6 +67,18 @@ export interface ContinuationDto {
   producer?: string | CommandDto | null;
   completeWhen?: CompletionPredicateDto | null;
   nextTask?: unknown;
+}
+export interface TriggerDto {
+  kind?: unknown;
+  source?: unknown;
+  pollInterval?: unknown;
+}
+export interface CircuitBreakerCheckDto {
+  kind?: unknown;
+  threshold?: unknown;
+}
+export interface CircuitBreakerDto {
+  checks?: CircuitBreakerCheckDto[] | null;
 }
 export interface CompletionPredicateDto {
   kind?: unknown;

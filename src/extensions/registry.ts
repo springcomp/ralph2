@@ -19,6 +19,14 @@ export interface PredicateRegistration extends ExtensionDocumentation {
   callback: import("./types.js").PredicateCallback;
 }
 
+export interface TriggerRegistration extends ExtensionDocumentation {
+  callback: import("./types.js").TriggerCallback;
+}
+
+export interface CircuitBreakerRegistration extends ExtensionDocumentation {
+  callback: import("./types.js").CircuitBreakerCallback;
+}
+
 export type ExtensionRegistration = ActionRegistration | PredicateRegistration;
 
 export interface TemplateRegistration {
@@ -36,19 +44,26 @@ export interface ExtensionRegistry {
   predicates: readonly PredicateRegistration[];
   templates: readonly TemplateRegistration[];
   producers: readonly ProducerRegistration[];
+  triggers: readonly TriggerRegistration[];
+  circuitBreakers: readonly CircuitBreakerRegistration[];
   action(name: string): ActionRegistration | undefined;
   predicate(name: string): PredicateRegistration | undefined;
   template(name: string): TemplateRegistration | undefined;
   producer(name: string): ProducerRegistration | undefined;
+  trigger(name: string): TriggerRegistration | undefined;
+  circuitBreaker(name: string): CircuitBreakerRegistration | undefined;
 }
 
 import { scheduleTaskAction } from "./actions/schedule-task.js";
+import { noProgressCircuitBreaker } from "./circuit-breakers/no-progress.js";
+import { repeatedFailureSignatureCircuitBreaker } from "./circuit-breakers/repeated-failure-signature.js";
 import { acceptedExitCodePredicate } from "./predicates/accepted-exit-code.js";
 import { fileExistsPredicate } from "./predicates/file-exists.js";
 import { fileMissingPredicate } from "./predicates/file-missing.js";
 import { goalProducerRegistration } from "./producers/goalProducer.js";
 import { blueprintTemplateRegistration } from "./templates/blueprint.js";
 import { goalTemplateRegistration } from "./templates/goal.js";
+import { taskAppearsTrigger } from "./triggers/task-appears.js";
 
 const actions: readonly ActionRegistration[] = [scheduleTaskAction];
 
@@ -67,6 +82,13 @@ const builtinProducers: readonly ProducerRegistration[] = [
   goalProducerRegistration,
 ];
 
+const builtinTriggers: readonly TriggerRegistration[] = [taskAppearsTrigger];
+
+const builtinCircuitBreakers: readonly CircuitBreakerRegistration[] = [
+  noProgressCircuitBreaker,
+  repeatedFailureSignatureCircuitBreaker,
+];
+
 function find<T extends { name: string }>(
   registrations: readonly T[],
   name: string,
@@ -82,12 +104,19 @@ export function createExtensionRegistry(
     predicates?: readonly PredicateRegistration[];
     templates?: readonly TemplateRegistration[];
     producers?: readonly ProducerRegistration[];
+    triggers?: readonly TriggerRegistration[];
+    circuitBreakers?: readonly CircuitBreakerRegistration[];
   } = {},
 ): ExtensionRegistry {
   const registeredActions = [...actions, ...(extra.actions ?? [])];
   const registeredPredicates = [...predicates, ...(extra.predicates ?? [])];
   const registeredTemplates = [...builtinTemplates, ...(extra.templates ?? [])];
   const registeredProducers = [...builtinProducers, ...(extra.producers ?? [])];
+  const registeredTriggers = [...builtinTriggers, ...(extra.triggers ?? [])];
+  const registeredCircuitBreakers = [
+    ...builtinCircuitBreakers,
+    ...(extra.circuitBreakers ?? []),
+  ];
   const assertUnique = (
     kind: string,
     registrations: readonly { name: string }[],
@@ -106,15 +135,21 @@ export function createExtensionRegistry(
   assertUnique("predicate", registeredPredicates);
   assertUnique("template", registeredTemplates);
   assertUnique("producer", registeredProducers);
+  assertUnique("trigger", registeredTriggers);
+  assertUnique("circuitBreaker", registeredCircuitBreakers);
   return {
     actions: registeredActions,
     predicates: registeredPredicates,
     templates: registeredTemplates,
     producers: registeredProducers,
+    triggers: registeredTriggers,
+    circuitBreakers: registeredCircuitBreakers,
     action: (name) => find(registeredActions, name),
     predicate: (name) => find(registeredPredicates, name),
     template: (name) => find(registeredTemplates, name),
     producer: (name) => find(registeredProducers, name),
+    trigger: (name) => find(registeredTriggers, name),
+    circuitBreaker: (name) => find(registeredCircuitBreakers, name),
   };
 }
 

@@ -230,6 +230,146 @@ ralph.event type=<type> iteration=<n> stage=<stage-or--> message=<message>
 
 ---
 
+### 5b. WorkSource Levels & Triggers (`src/extensions/triggers/`)
+
+Ralph's loop is one pipeline (`preAgent → harness → postAgent → verification →
+continuation`) fed by a stack of **work sources**, each with the same shape: *yield
+work until a predicate says stop*. Exhaustion at one level bubbles to the next level
+out.
+
+| Level | Source | Yields | On exhaustion |
+| --- | --- | --- | --- |
+| Task | `MarkdownTaskSource.getFirstUncheckedTask` | individual tasks within a run | defer to continuation |
+| Continuation | `blueprint` / `generatedGoal` | refills the task queue | defer to trigger (if configured) else terminate |
+| Trigger | `taskAppears`, … | whole runs | idle, or terminate when it will never fire again |
+
+`goal` and `blueprint` are two `continuation` strategies over the same pipeline: `goal`
+*generates* its next task (`producer` + `nextTask`) and stops on `completeWhen`;
+`blueprint` *pulls* the next task from a source file and stops when the source is
+exhausted. Both are `(task-source, completion-predicate)` pairs.
+
+A **trigger** is the outermost work source. It is consulted only when the workflow would
+otherwise complete normally (status `complete`); it never intercepts `blocked` /
+remediation / failure paths. When no `trigger` is configured, behavior is exactly as
+before (fully backward compatible).
+
+Lifecycle when a trigger is configured:
+
+```text
+compile → engine.run() iteration loop
+   work exhausted → continuation would return `complete`
+      trigger.wait()  ── idle ──►  fires (signal)  ──►  loop resumes (next iteration)
+                                   returns null    ──►  terminate `complete`
+                                   aborted         ──►  terminate `canceled`
+```
+
+`maxIterations` remains the overall safety cap across wake-ups. Each wake-up consumes
+iterations, so an always-firing trigger with no new work eventually returns
+`IterationLimitReached`.
+
+#### `trigger` configuration
+
+```yaml
+trigger:
+  kind: taskAppears          # any registered trigger name
+  source: .agentic/BLUEPRINT.md   # observed path; defaults to tasks.prd
+  pollInterval: 5s           # poll cadence; defaults to 5s
+```
+
+Built-in trigger `taskAppears` polls a Markdown source until it contains an unchecked
+task, then fires. The task checkbox doubles as an idempotency cursor: drained tasks are
+checked (`- [x]`), so only genuinely new, unchecked work wakes the loop — no separate
+processed-offset bookkeeping required.
+
+This satisfies the "blueprint starts empty → drain a batch of tasks one-by-one → go idle
+→ wait for the next batch" pattern, and is the substrate for agent-to-agent loops: one
+Ralph instance appends tasks another instance is idling on.
+
+#### Trigger extension kind
+
+Triggers are a first-class extension kind alongside `actions` / `predicates` /
+`producers` / `templates`, registered via `createExtensionRegistry({ triggers: [...] })`
+and introspectable via `ralph triggers [show]` and `ralph explain trigger <name>`. A
+`TriggerRegistration.callback(context)` receives the resolved `source`,
+`pollIntervalMs`, `workspace`, a shared `MarkdownTaskSource`, an `emit` callback, and an
+`AbortSignal`; it resolves a `{ reason }` signal to fire, or `null` to terminate.
+
+**Deferred (future phases, not built):** mailbox/envelope convention for directed
+agent-to-agent conversation; additional trigger kinds (`watch`, `cron`, `webhook`);
+cross-workspace blackboard locking.
+
+### 5c. Circuit Breaker (`src/extensions/circuit-breakers/`, `src/core/circuit-breaker.ts`)
+
+Triggers make `maxIterations` an unreliable backstop: a long-lived `taskAppears`-driven
+watcher wants an effectively unbounded iteration budget. Without a separate safety net,
+two shapes run away indefinitely:
+
+1. A `generatedGoal` continuation whose `completeWhen` never trips true.
+2. A non-mandatory gate (`mandatory: false` + `failurePolicy: continue`) that fails
+   every iteration — today this only logs `"Continuing after stage failure"` and
+   proceeds, forever, with no counter at all.
+
+The **circuit breaker** closes this gap with one generic mechanism reused by any number
+of pluggable checks. A check is *only* a signature function:
+
+```ts
+type CircuitBreakerCallback = (context: CircuitBreakerContext) => Promise<string | null>;
+```
+
+The engine compares each check's signature to the last one it persisted:
+
+- `null` → reset (streak 0, check inactive this iteration — e.g. no failure occurred).
+- same as last signature → streak += 1 (nothing changed / same failure recurring).
+- different signature → streak = 1, update last signature (real progress, or a
+  different failure).
+- `streak >= threshold` → trip → the run ends `blocked` (exit code 3), naming the
+  check, threshold, and repeated signature.
+
+This is invoked **once per iteration**, immediately after the `postAgent` stage loop
+finishes — before the remediation-scheduled continue and before the verification check —
+so it covers both the "remediation scheduled every iteration" and the "non-mandatory
+gate silently failing every iteration" shapes.
+
+Streak/signature state is persisted to `.agentic/__circuit_breaker.json` (keyed by check
+name, atomically read-modify-written under the same `StateLock` used elsewhere), so it
+survives trigger idle/resume cycles *and* external process restarts.
+
+#### Built-in checks
+
+- **`noProgress`** — signature reflects whether the workspace's VCS state changed.
+  Prefers `jj` (via `jj log --no-graph -T commit_id -r @`, which auto-snapshots the
+  working copy on every invocation) when a `.jj` directory is present, since jj's
+  working copy is not reliably reflected in git's `HEAD`/index without an explicit
+  export — even in `jj git init --colocate` repos. Falls back to a `git rev-parse HEAD`
+  + `git diff` hash when only `.git` is present. Returns `null` (inert, never errors)
+  for any other/no VCS — that's the documented escape hatch for a custom check.
+- **`repeatedFailureSignature`** — signature is `${stage}:${exitCode}` of the most
+  recent failing `postAgent` stage this iteration, or `null` if none failed.
+
+#### `circuitBreaker` configuration
+
+```yaml
+circuitBreaker:
+  checks:
+    - kind: noProgress
+      threshold: 5
+    - kind: repeatedFailureSignature
+      threshold: 3
+```
+
+Absent `circuitBreaker:` = fully backward compatible, zero behavior change. Check kinds
+are a first-class extension kind (like `trigger`), registered via
+`createExtensionRegistry({ circuitBreakers: [...] })` and introspectable via
+`ralph circuitBreakers [show]` / `ralph explain circuitBreaker <name>`. Custom checks
+only need to implement the signature function above — streak-counting, thresholding,
+and persistence are free.
+
+**Deferred (future phases, not built):** custom trip actions beyond `blocked`; VCS
+support in `noProgress` beyond git/jj (Mercurial, Perforce, SVN, etc. — register a
+custom check instead).
+
+---
+
 ## CLI Interface (`src/cli/`)
 
 Implemented using Commander.js:
@@ -249,9 +389,11 @@ ralph templates [show]
 ralph variables [show]   # alias: vars
 ralph actions [show]
 ralph predicates [show]
+ralph triggers [show]
 ralph schema [show]
 ralph explain action <name>
 ralph explain predicate <name>
+ralph explain trigger <name>
 ```
 
 ---

@@ -125,6 +125,25 @@ describe("CLI Application", () => {
       );
     });
 
+    it.each([["triggers"], ["triggers", "show"]])(
+      "lists registered triggers with %s",
+      async (...args) => {
+        await createProgram().parseAsync(["node", "ralph", ...args]);
+        expect(consoleLogSpy).toHaveBeenCalledWith("taskAppears");
+      },
+    );
+
+    it("shows trigger documentation with explain", async () => {
+      const args = ["explain", "trigger", "taskAppears"];
+      await createProgram().parseAsync(["node", "ralph", ...args]);
+      expect(consoleLogSpy).toHaveBeenCalledWith(
+        expect.stringContaining("trigger: taskAppears"),
+      );
+      expect(consoleLogSpy).toHaveBeenCalledWith(
+        expect.stringContaining("pollInterval"),
+      );
+    });
+
     it("rejects an unknown promoted subcommand", async () => {
       await createProgram().parseAsync(["node", "ralph", "templates", "list"]);
       expect(process.exitCode).toBe(WorkflowExitCodes.InvalidConfiguration);
