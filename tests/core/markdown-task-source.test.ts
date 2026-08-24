@@ -68,6 +68,32 @@ describe("MarkdownTaskSource", () => {
       "# H\r\n  - [x] T-1 - First\r\nend\r\n",
     );
   });
+  it("checks exact task state without being fooled by earlier remediation", async () => {
+    const { prdPath } = await files(
+      "- [ ] TASK-1 - First\n- [ ] TASK-2 - Second\n",
+    );
+    const source = new MarkdownTaskSource();
+    const target = await source.getFirstUncheckedTask(prdPath);
+    if (!target) throw new Error("Expected task");
+    await source.scheduleTask(prdPath, "- [ ] FIX-1 - Repair");
+    expect(await source.isTaskUnchecked(prdPath, target)).toBe(true);
+    await source.checkTask(prdPath, target);
+    expect(await source.isTaskUnchecked(prdPath, target)).toBe(false);
+  });
+  it("rejects missing or changed exact tasks", async () => {
+    const { prdPath } = await files();
+    const source = new MarkdownTaskSource();
+    const target = await source.getFirstUncheckedTask(prdPath);
+    if (!target) throw new Error("Expected task");
+    await writeFile(prdPath, "- [ ] TASK-001 - Changed\n");
+    await expect(source.isTaskUnchecked(prdPath, target)).rejects.toThrow(
+      /no longer matches/,
+    );
+    await writeFile(prdPath, "- [ ] OTHER-1 - Other\n");
+    await expect(source.isTaskUnchecked(prdPath, target)).rejects.toThrow(
+      /no longer exists/,
+    );
+  });
   it("schedules before first unchecked and replaces same identity", async () => {
     const { prdPath } = await files(
       "- [x] T-1 - Done\n- [ ] FIX-2 - Old\n- [ ] T-3 - Later\n",

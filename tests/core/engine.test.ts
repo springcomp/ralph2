@@ -415,6 +415,86 @@ describe("WorkflowEngine", () => {
     expect(harnessCallCount).toBe(2);
   });
 
+  it("passes original task context to postAgent after remediation is inserted", async () => {
+    await writeFile(prdPath, "- [ ] TASK-001 - Feature work\n", "utf8");
+    const requests: ProcessRequest[] = [];
+    const runner = {
+      async run(req: ProcessRequest): Promise<ProcessResult> {
+        requests.push(req);
+        if (req.command === "pi") {
+          await writeFile(
+            prdPath,
+            "- [ ] FIX-001 - Repair\n- [ ] TASK-001 - Feature work\n",
+          );
+        }
+        return { exitCode: 0, signal: null, timedOut: false, cancelled: false };
+      },
+    };
+    const result = await new WorkflowEngine(runner).run(
+      createPlan({
+        postAgent: [
+          createStagePlan({ executable: "check", arguments: ["{TASK}"] }),
+        ],
+        verification: { requireTaskChecked: false, retries: 0 },
+      }),
+    );
+    expect(result.status).toBe("iterationLimit");
+    expect(
+      requests.find((request) => request.command === "check")?.args,
+    ).toEqual(["Feature work"]);
+  });
+
+  it("does not verify or continue after a mandatory gate schedules remediation", async () => {
+    await writeFile(prdPath, "- [ ] TASK-001 - Feature work\n", "utf8");
+    const commands: string[] = [];
+    const runner = {
+      async run(req: ProcessRequest): Promise<ProcessResult> {
+        commands.push(req.command);
+        if (req.command === "pi")
+          await writeFile(prdPath, "- [x] TASK-001 - Feature work\n");
+        return req.command === "gate"
+          ? { exitCode: 1, signal: null, timedOut: false, cancelled: false }
+          : { exitCode: 0, signal: null, timedOut: false, cancelled: false };
+      },
+    };
+    const result = await new WorkflowEngine(runner).run(
+      createPlan({
+        maxIterations: 1,
+        postAgent: [
+          createStagePlan({
+            executable: "gate",
+            failureTask: "- [ ] FIX-{ITERATION:000} - Repair gate",
+          }),
+        ],
+      }),
+    );
+    expect(result.status).toBe("iterationLimit");
+    expect(commands).toEqual(["pi", "gate"]);
+  });
+
+  it("blocks when a required gate result artifact is missing", async () => {
+    await writeFile(prdPath, "- [ ] TASK-001 - Feature work\n", "utf8");
+    const runner = {
+      async run(req: ProcessRequest): Promise<ProcessResult> {
+        if (req.command === "pi")
+          await writeFile(prdPath, "- [x] TASK-001 - Feature work\n");
+        return { exitCode: 0, signal: null, timedOut: false, cancelled: false };
+      },
+    };
+    const result = await new WorkflowEngine(runner).run(
+      createPlan({
+        postAgent: [
+          createStagePlan({
+            executable: "gate",
+            resultPath: join(tmpDir, "missing.json"),
+            resultRequired: true,
+          }),
+        ],
+      }),
+    );
+    expect(result.status).toBe("processFailure");
+  });
+
   it("runs verification loop when task remains unchecked", async () => {
     await writeFile(prdPath, "- [ ] TASK-001 - Unchecked task\n", "utf8");
     let harnessInvocations = 0;
@@ -573,7 +653,7 @@ describe("WorkflowEngine", () => {
           goalIteration++;
           await writeFile(
             prdPath,
-            `- [x] GOAL-${goalIteration.toString().padStart(3, "0")} - Step\n`,
+            `- [x] GOAL-001 - Initial goal step\n- [x] GOAL-${goalIteration.toString().padStart(3, "0")} - Step\n`,
             "utf8",
           );
         }
@@ -623,7 +703,7 @@ describe("WorkflowEngine", () => {
           goalIteration++;
           await writeFile(
             prdPath,
-            `- [x] GOAL-${goalIteration.toString().padStart(3, "0")} - Step\n`,
+            `- [x] GOAL-001 - Initial goal step\n- [x] GOAL-${goalIteration.toString().padStart(3, "0")} - Step\n`,
             "utf8",
           );
         }

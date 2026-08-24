@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import type { StagePlan, WorkflowPlan } from "../config/compiler.js";
 import {
@@ -115,7 +115,9 @@ export class WorkflowEngine {
           continue;
         }
         const original = task;
-        let values = this.values(plan, task, options, iteration);
+        const originalValues = this.values(plan, original, options, iteration);
+        const values = originalValues;
+        let remediationScheduled = false;
         await emit({
           type: "task.started",
           iteration,
@@ -158,27 +160,14 @@ export class WorkflowEngine {
               iteration,
               emit,
             );
-            if (handled) return handled;
+            if (handled && handled !== "scheduled") return handled;
+            remediationScheduled = Boolean(handled === "scheduled");
+            if (!remediationScheduled && stage.mandatory !== false)
+              return this.failure(failure.result, iteration, events);
           }
-          try {
-            task = await this.source.getFirstUncheckedTask(plan.tasks.prd);
-          } catch (error) {
-            return this.result(
-              "blocked",
-              this.message(error),
-              iteration,
-              events,
-            );
-          }
-          if (!task)
-            return this.result(
-              "complete",
-              "No unchecked tasks remain.",
-              iteration,
-              events,
-            );
-          values = this.values(plan, task, options, iteration);
+          if (remediationScheduled) break;
         }
+        if (remediationScheduled) continue;
         let run = await this.runStage(
           harness,
           values,
@@ -188,12 +177,6 @@ export class WorkflowEngine {
           options.signal,
         );
         if (!run.success) return this.failure(run.result, iteration, events);
-        try {
-          task = await this.source.getFirstUncheckedTask(plan.tasks.prd);
-        } catch (error) {
-          return this.result("blocked", this.message(error), iteration, events);
-        }
-        values = task ? this.values(plan, task, options, iteration) : values;
         for (const stage of plan.postAgent) {
           run = await this.runStage(
             stage,
@@ -212,28 +195,27 @@ export class WorkflowEngine {
               iteration,
               emit,
             );
-            if (handled) return handled;
-            try {
-              task = await this.source.getFirstUncheckedTask(plan.tasks.prd);
-            } catch (error) {
-              return this.result(
-                "blocked",
-                this.message(error),
-                iteration,
-                events,
-              );
+            if (handled && handled !== "scheduled") return handled;
+            if (handled === "scheduled") {
+              remediationScheduled = true;
+              break;
             }
-            values = task
-              ? this.values(plan, task, options, iteration)
-              : values;
+            if (stage.mandatory !== false)
+              return this.failure(run.result, iteration, events);
           }
         }
-        if (
-          plan.verification.requireTaskChecked &&
-          (await this.stillUnchecked(plan.tasks.prd, original))
-        ) {
+        if (remediationScheduled) continue;
+        let originalUnchecked = false;
+        try {
+          originalUnchecked =
+            plan.verification.requireTaskChecked &&
+            (await this.stillUnchecked(plan.tasks.prd, original));
+        } catch (error) {
+          return this.result("blocked", this.message(error), iteration, events);
+        }
+        if (originalUnchecked) {
           for (let retry = 0; retry < plan.verification.retries; retry++) {
-            let verifyValues = this.values(plan, original, options, iteration);
+            let verifyValues = originalValues;
             if (plan.verification.prompt) {
               const promptPath = `${workspace}/.agentic/__verification.prompt.md`;
               await mkdir(dirname(promptPath), { recursive: true });
@@ -254,9 +236,31 @@ export class WorkflowEngine {
             );
             if (!run.success)
               return this.failure(run.result, iteration, events);
-            if (!(await this.stillUnchecked(plan.tasks.prd, original))) break;
+            try {
+              if (!(await this.stillUnchecked(plan.tasks.prd, original))) break;
+            } catch (error) {
+              return this.result(
+                "blocked",
+                this.message(error),
+                iteration,
+                events,
+              );
+            }
           }
-          if (await this.stillUnchecked(plan.tasks.prd, original))
+          try {
+            originalUnchecked = await this.stillUnchecked(
+              plan.tasks.prd,
+              original,
+            );
+          } catch (error) {
+            return this.result(
+              "blocked",
+              this.message(error),
+              iteration,
+              events,
+            );
+          }
+          if (originalUnchecked)
             return this.result(
               "blocked",
               `Task ${original.id} remained unchecked after verification.`,
@@ -266,7 +270,7 @@ export class WorkflowEngine {
         }
         const continuation = await this.continueAfterTask(
           plan,
-          values,
+          originalValues,
           iteration,
           events,
           options,
@@ -319,11 +323,7 @@ export class WorkflowEngine {
     path: string,
     target: MarkdownTask,
   ): Promise<boolean> {
-    const task = await this.source.getFirstUncheckedTask(path);
-    return (
-      task?.id.toLowerCase() === target.id.toLowerCase() &&
-      task.rawLine === target.rawLine
-    );
+    return this.source.isTaskUnchecked(path, target);
   }
   private async runStage(
     stage: StagePlan,
@@ -373,19 +373,49 @@ export class WorkflowEngine {
       !result.cancelled &&
       result.exitCode !== null &&
       stage.successExitCodes.includes(result.exitCode);
+    const artifactFailure =
+      success && stage.resultRequired
+        ? !(await this.validateResultArtifact(stage, values))
+        : false;
     await emit({
       type: "stage.completed",
       iteration,
       stage: stage.name,
       message: result.cancelled
         ? "Stage canceled."
-        : success
-          ? "Stage succeeded."
-          : result.timedOut
-            ? "Stage timed out."
-            : `Stage exited with code ${result.exitCode}.`,
+        : artifactFailure
+          ? "Required result artifact is missing or invalid."
+          : success
+            ? "Stage succeeded."
+            : result.timedOut
+              ? "Stage timed out."
+              : `Stage exited with code ${result.exitCode}.`,
     });
-    return { result, success };
+    return { result, success: success && !artifactFailure };
+  }
+  private async validateResultArtifact(
+    stage: StagePlan,
+    values: PlaceholderContext,
+  ): Promise<boolean> {
+    if (!stage.resultPath) return false;
+    try {
+      const content = await readFile(
+        this.expander.expand(stage.resultPath, values),
+        "utf8",
+      );
+      const parsed: unknown = JSON.parse(content);
+      return !!parsed && typeof parsed === "object" && !Array.isArray(parsed);
+    } catch (error) {
+      if (
+        error instanceof SyntaxError ||
+        (typeof error === "object" &&
+          error !== null &&
+          "code" in error &&
+          (error as { code?: unknown }).code === "ENOENT")
+      )
+        return false;
+      throw error;
+    }
   }
   private async handleFailure(
     plan: WorkflowPlan,
@@ -394,7 +424,7 @@ export class WorkflowEngine {
     result: ProcessResult,
     iteration: number,
     emit: (e: WorkflowEvent) => Promise<void>,
-  ): Promise<WorkflowRunResult | null> {
+  ): Promise<WorkflowRunResult | "scheduled" | null> {
     if (stage.failureAction || stage.failureTask) {
       const actionName = stage.failureAction ?? "scheduleTask";
       const action = this.extensions.action(actionName);
@@ -419,8 +449,8 @@ export class WorkflowEngine {
       } catch (error) {
         return this.result("blocked", this.message(error), iteration, []);
       }
-      // A failure task was scheduled — continue the loop so it gets processed.
-      return null;
+      // A failure task belongs to the next iteration, never this completion path.
+      return "scheduled";
     }
     if (stage.failurePolicy === "continue") {
       await emit({

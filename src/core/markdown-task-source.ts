@@ -150,6 +150,26 @@ async function update(
 }
 
 export class MarkdownTaskSource {
+  async isTaskUnchecked(
+    prdPath: string,
+    target: MarkdownTask,
+  ): Promise<boolean> {
+    const parsed = tasks(parseDocument(await readFile(prdPath, "utf8")).lines);
+    ensureUniqueUnchecked(parsed);
+    const candidates = parsed.filter(
+      ({ task }) => task.id.toLowerCase() === target.id.toLowerCase(),
+    );
+    const normalized = (line: string) => line.replace(/\[[ xX]\]/, "[ ]");
+    const exact = candidates.find(
+      ({ task }) => normalized(task.rawLine) === normalized(target.rawLine),
+    );
+    if (exact) return exact.unchecked;
+    if (candidates.some(({ unchecked }) => !unchecked)) return false;
+    if (candidates.length)
+      throw new MarkdownTaskError(`Task '${target.id}' no longer matches.`);
+    throw new MarkdownTaskError(`Task '${target.id}' no longer exists.`);
+  }
+
   async getFirstUncheckedTask(prdPath: string): Promise<MarkdownTask | null> {
     const parsed = tasks(parseDocument(await readFile(prdPath, "utf8")).lines);
     ensureUniqueUnchecked(parsed);

@@ -39,6 +39,9 @@ export interface StagePlan {
   failurePolicy: "stop" | "continue";
   /** undefined = inherit workflow-level ptyDefault */
   pty?: boolean;
+  mandatory?: boolean;
+  resultPath?: string;
+  resultRequired?: boolean;
 }
 export interface TaskFileSet {
   prd: string;
@@ -137,6 +140,9 @@ function stage(
     failureTask: text(dto.onFailure?.task) || undefined,
     failurePolicy: dto.failurePolicy === "continue" ? "continue" : "stop",
     pty: typeof dto.pty === "boolean" ? dto.pty : ptyDefault,
+    mandatory: dto.mandatory !== false,
+    resultPath: path(workspace, dto.result?.path),
+    resultRequired: dto.result?.required === true,
   };
 }
 export function compileWorkflow(

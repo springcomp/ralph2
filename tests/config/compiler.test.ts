@@ -59,6 +59,8 @@ describe("compileWorkflow", () => {
       {
         executable: "node",
         arguments: ["post.js"],
+        mandatory: false,
+        result: { path: ".agentic/result.json", required: true },
       },
     ],
     verification: {
@@ -98,6 +100,11 @@ describe("compileWorkflow", () => {
     expect(plan.preAgent[0].name).toBe("pre-step");
     expect(plan.postAgent).toHaveLength(1);
     expect(plan.postAgent[0].name).toBe("postAgent[0]");
+    expect(plan.postAgent[0].mandatory).toBe(false);
+    expect(plan.postAgent[0].resultPath).toBe(
+      resolve("/mock/project/work-dir/.agentic/result.json"),
+    );
+    expect(plan.postAgent[0].resultRequired).toBe(true);
     expect(plan.verification.requireTaskChecked).toBe(true);
     expect(plan.verification.retries).toBe(2);
     expect(plan.verification.prompt).toBe("Verify {TASK}");

@@ -36,7 +36,9 @@ function toDiagnosticPath(instancePath: string): string {
     }, "");
 }
 
-function ajvDiagnostics(errors: ErrorObject[] | null | undefined): Diagnostic[] {
+function ajvDiagnostics(
+  errors: ErrorObject[] | null | undefined,
+): Diagnostic[] {
   return (errors ?? [])
     .filter((e) => e.keyword !== "oneOf" && e.keyword !== "anyOf")
     .map((e) => {
@@ -94,10 +96,20 @@ function semanticDiagnostics(
   const collectCommandPlaceholders = (path: string, value: unknown) => {
     if (!value || typeof value !== "object") return;
     const c = value as CommandDto;
-    if (c.timeout !== undefined && (!string(c.timeout) || parseTimeout(c.timeout) <= 0))
+    if (
+      c.timeout !== undefined &&
+      (!string(c.timeout) || parseTimeout(c.timeout) <= 0)
+    )
       d.push({
         path: `${path}.timeout`,
         message: "must be greater than zero",
+      });
+    if (c.result?.path !== undefined && string(c.result.path))
+      placeholders(`${path}.result.path`, [c.result.path], d);
+    if (c.result?.required === true && !string(c.result?.path))
+      d.push({
+        path: `${path}.result.path`,
+        message: "is required when result.required is true",
       });
     placeholders(
       `${path}.arguments`,
@@ -120,7 +132,8 @@ function semanticDiagnostics(
       : []
     ).entries()) {
       const x = e as { value?: unknown };
-      if (string(x.value)) placeholders(`${path}.environment[${i}].value`, [x.value], d);
+      if (string(x.value))
+        placeholders(`${path}.environment[${i}].value`, [x.value], d);
     }
   };
 

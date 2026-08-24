@@ -119,6 +119,10 @@ Existing `postAgent` stages can host domain-specific checks:
 postAgent:
   - name: build
     executable: ./scripts/build.ps1
+    mandatory: true
+    result:
+      path: .agentic/results/{ITERATION:000}/build.json
+      required: true
     onFailure:
       action: scheduleTask
       task: "- [ ] FIX-{ITERATION:000} - Build failed for {TASK}"
@@ -131,6 +135,10 @@ This is sufficient as an execution mechanism if Ralph guarantees:
 3. remediation runs in a later iteration;
 4. verification checks the original task;
 5. result artifacts can be consumed by later checks or humans.
+
+`mandatory` defaults to true. A required `result` artifact must be a JSON
+object; a missing or malformed artifact fails the stage even when the
+executable exits successfully.
 
 Ralph core need not know domain meanings such as oracle, diagnostics, coverage, or fixture conformance. Those are script responsibilities.
 
