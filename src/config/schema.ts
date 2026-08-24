@@ -91,6 +91,11 @@ export function workflowSchema(registry: ExtensionRegistry): JsonSchema {
       envFile: { type: "string", minLength: 1 },
       environment: { type: "array", items: environmentItem },
       maxIterations: { type: "number", exclusiveMinimum: 0 },
+      maxRemediationAttempts: {
+        type: "number",
+        minimum: 0,
+        multipleOf: 1,
+      },
       tasks: {
         type: "object",
         required: ["prd", "progress", "prompt"],

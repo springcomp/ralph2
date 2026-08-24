@@ -46,6 +46,7 @@ describe("WorkflowEngine", () => {
   const createPlan = (overrides: Partial<WorkflowPlan> = {}): WorkflowPlan => ({
     workspace: tmpDir,
     maxIterations: 5,
+    maxRemediationAttempts: 2,
     statusFormat:
       "Iteration {ITERATION:000} - {TYP}-{NUM} - {TASK} (model: `{MODEL}`)",
     model: "yaml-model",
@@ -112,6 +113,38 @@ describe("WorkflowEngine", () => {
       "Iteration 001 - TASK-001 - Implement feature (model: `yaml-model`)",
     ]);
     expect(events.some((e) => e.type === "task.started")).toBe(true);
+  });
+
+  it("blocks instead of creating a third remediation task", async () => {
+    await writeFile(
+      prdPath,
+      [
+        "- [x] TASK-001 - Original work",
+        "- [x] BUILD-002 - Build failed for TASK-001 Original work (parent: TASK-001)",
+        "- [ ] BUILD-003 - Build failed for BUILD-002 Original work (parent: BUILD-002)",
+        "",
+      ].join("\n"),
+      "utf8",
+    );
+    const plan = createPlan({
+      postAgent: [
+        createStagePlan({
+          name: "build",
+          failureTask:
+            "- [ ] BUILD-{ITERATION:000} - Build failed for {TYP}-{NUM} {TASK} (parent: {TYP}-{NUM})",
+        }),
+      ],
+    });
+    const runner = new FakeProcessRunner([
+      { exitCode: 0, signal: null, timedOut: false, cancelled: false },
+      { exitCode: 1, signal: null, timedOut: false, cancelled: false },
+    ]);
+    const result = await new WorkflowEngine(runner).run(plan);
+
+    expect(result.status).toBe("blocked");
+    expect(result.message).toContain("Maximum remediation attempts (2)");
+    expect(result.message).toContain("TASK-001");
+    expect((await readFile(prdPath, "utf8")).match(/^- \[ \]/gm)).toHaveLength(1);
   });
 
   it("merges global and stage environment with stage inline values winning", async () => {

@@ -15,6 +15,7 @@ export interface CompileOptions {
   workingDirectory?: string;
   workspace?: string;
   maxIterations?: number;
+  maxRemediationAttempts?: number;
   harness?: string;
   model?: string | null;
   agent?: string | null;
@@ -56,6 +57,7 @@ export interface WorkflowPlan {
   environment?: EnvironmentVariablePlan[];
   envFilePath?: string;
   maxIterations: number;
+  maxRemediationAttempts: number;
   tasks: TaskFileSet;
   harnesses: Record<string, StagePlan>;
   defaultHarness: string;
@@ -235,6 +237,13 @@ export function compileWorkflow(
       : [],
     envFilePath: path(workspace, document.envFile),
     maxIterations: options.maxIterations ?? Number(document.maxIterations),
+    maxRemediationAttempts:
+      options.maxRemediationAttempts ??
+      (typeof document.maxRemediationAttempts === "number" &&
+      Number.isInteger(document.maxRemediationAttempts) &&
+      document.maxRemediationAttempts >= 0
+        ? document.maxRemediationAttempts
+        : 2),
     tasks: {
       prd: path(workspace, tasks.prd) ?? "",
       progress: path(workspace, tasks.progress) ?? "",

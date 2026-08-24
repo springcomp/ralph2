@@ -178,6 +178,10 @@ export class RealProcessRunner implements ProcessRunner {
     }
 
     const { env, secrets } = resolveEnvironment(request);
+    // Tell color-detecting CLIs what kind of terminal they are attached to.
+    env.TERM ??= "xterm-256color";
+    env.COLORTERM ??= "truecolor";
+    if (env.NO_COLOR === undefined) env.FORCE_COLOR ??= "1";
     let child: IPty;
     try {
       child = pty.spawn(request.command, [...(request.args ?? [])], {
@@ -271,6 +275,7 @@ export class RealProcessRunner implements ProcessRunner {
     let cancelled = false;
     let settled = false;
     let timer: NodeJS.Timeout | undefined;
+    let stopFinalizeTimer: NodeJS.Timeout | undefined;
 
     return await new Promise<ProcessResult>((resolve, reject) => {
       let child: ChildProcess;
@@ -288,11 +293,34 @@ export class RealProcessRunner implements ProcessRunner {
         return;
       }
 
+      const finalize = async (
+        exitCode: number | null,
+        signal: NodeJS.Signals | null,
+      ) => {
+        if (settled) return;
+        settled = true;
+        if (timer) clearTimeout(timer);
+        if (stopFinalizeTimer) clearTimeout(stopFinalizeTimer);
+        request.signal?.removeEventListener("abort", abort);
+        const tail = redactor.flush();
+        if (tail) {
+          request.onOutput?.(tail, "stdout");
+          await log?.write(tail);
+          process.stdout.write(tail);
+        }
+        await log?.close();
+        resolve({ exitCode, signal, timedOut, cancelled });
+      };
       const stop = (reason: "timeout" | "cancel") => {
         if (settled) return;
         if (reason === "timeout") timedOut = true;
         else cancelled = true;
         killTree(child);
+        if (process.platform === "win32" && !stopFinalizeTimer) {
+          stopFinalizeTimer = setTimeout(() => {
+            void finalize(null, null);
+          }, ptyStopSettleGraceMs);
+        }
       };
       const abort = () => stop("cancel");
       if (request.signal) {
@@ -317,23 +345,13 @@ export class RealProcessRunner implements ProcessRunner {
         if (!settled) {
           settled = true;
           if (timer) clearTimeout(timer);
+          if (stopFinalizeTimer) clearTimeout(stopFinalizeTimer);
           request.signal?.removeEventListener("abort", abort);
           reject(error);
         }
       });
       child.on("close", async (exitCode, signal) => {
-        if (settled) return;
-        settled = true;
-        if (timer) clearTimeout(timer);
-        request.signal?.removeEventListener("abort", abort);
-        const tail = redactor.flush();
-        if (tail) {
-          request.onOutput?.(tail, "stdout");
-          await log?.write(tail);
-          process.stdout.write(tail);
-        }
-        await log?.close();
-        resolve({ exitCode, signal, timedOut, cancelled });
+        await finalize(exitCode, signal);
       });
     });
   }

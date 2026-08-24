@@ -65,7 +65,7 @@ single or double quotes.
 
 ```text
 Usage:
-  ralph run      --config <path> [--model <model>] [--agent <agent>] [--harness <name>] [--max-iterations <n>] [--working-directory <path>] [--plain]
+  ralph run      --config <path> [--model <model>] [--agent <agent>] [--harness <name>] [--max-iterations <n>] [--working-directory <path>] [--plain] [--pty|--no-pty]
   ralph schema   --config <path>
   ralph init     --template <goal|blueprint> [--working-directory <path>] [--force]
   ralph templates [show]

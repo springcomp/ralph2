@@ -92,6 +92,11 @@ process remediation in a later iteration
 
 A failure action that schedules remediation must not allow the workflow to advance in the same iteration.
 
+Ralph limits remediation chains to two attempts by default. The limit is
+configured with the optional workflow-level `maxRemediationAttempts` setting.
+When a remediation task fails after the limit, Ralph blocks the workflow and
+does not schedule another remediation task.
+
 ### Verification
 
 Verification is a recovery step when agent work may be complete but original task remains unchecked. It is not a replacement for deterministic gates.

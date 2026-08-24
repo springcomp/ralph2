@@ -134,7 +134,7 @@ describe.skipIf(!ptyAvailable)("RealProcessRunner PTY mode", () => {
   it("preserves ANSI escape sequences from the child process", async () => {
     const output: string[] = [];
     const script = nodeScript(
-      "process.stdout.write('\\u001b[31mred\\u001b[0m')",
+      "process.stdout.write((process.env.TERM || '') + ':' + (process.env.COLORTERM || '') + ':' + (process.env.FORCE_COLOR || '') + '\\u001b[31mred\\u001b[0m')",
     );
 
     const result = await runner.run({
@@ -145,6 +145,10 @@ describe.skipIf(!ptyAvailable)("RealProcessRunner PTY mode", () => {
 
     expect(result.exitCode).toBe(0);
     const combined = output.join("");
+    expect(combined).toContain(
+      `${process.env.TERM ?? "xterm-256color"}:${process.env.COLORTERM ?? "truecolor"}`,
+    );
+    expect(combined).toContain(`${process.env.FORCE_COLOR ?? "1"}`);
     expect(combined).toContain("\u001b[31m");
     expect(combined).toContain("red");
     expect(output.every((entry) => entry.startsWith("stdout:"))).toBe(true);

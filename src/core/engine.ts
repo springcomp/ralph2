@@ -158,6 +158,7 @@ export class WorkflowEngine {
               plan,
               stage,
               values,
+              original,
               failure.result,
               iteration,
               emit,
@@ -195,6 +196,7 @@ export class WorkflowEngine {
               plan,
               stage,
               values,
+              original,
               run.result,
               iteration,
               emit,
@@ -456,11 +458,36 @@ export class WorkflowEngine {
     plan: WorkflowPlan,
     stage: StagePlan,
     values: PlaceholderContext,
+    task: MarkdownTask,
     result: ProcessResult,
     iteration: number,
     emit: (e: WorkflowEvent) => Promise<void>,
   ): Promise<WorkflowRunResult | "scheduled" | null> {
     if (stage.failureAction || stage.failureTask) {
+      let remediation: { depth: number; rootId: string };
+      try {
+        remediation = await this.source.remediationDepth(
+          plan.tasks.prd,
+          task,
+        );
+      } catch (error) {
+        return this.result("blocked", this.message(error), iteration, []);
+      }
+      const remediationAttempts = remediation.depth;
+      if (remediationAttempts >= plan.maxRemediationAttempts) {
+        await emit({
+          type: "remediation.exhausted",
+          iteration,
+          stage: stage.name,
+          message: `Maximum remediation attempts (${plan.maxRemediationAttempts}) reached for ${remediation.rootId}.`,
+        });
+        return this.result(
+          "blocked",
+          `Maximum remediation attempts (${plan.maxRemediationAttempts}) reached for ${remediation.rootId}.`,
+          iteration,
+          [],
+        );
+      }
       const actionName = stage.failureAction ?? "scheduleTask";
       const action = this.extensions.action(actionName);
       if (!action)

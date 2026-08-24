@@ -4,6 +4,7 @@ export interface V1WorkflowDocument {
   envFile?: unknown;
   environment?: (EnvironmentVariableDto | string)[] | null;
   maxIterations?: unknown;
+  maxRemediationAttempts?: unknown;
   tasks?: TaskFilesDto | null;
   defaults?: DefaultsDto | null;
   harnesses?: Record<string, CommandDto> | null;

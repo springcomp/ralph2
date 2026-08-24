@@ -150,6 +150,37 @@ async function update(
 }
 
 export class MarkdownTaskSource {
+  async remediationDepth(
+    prdPath: string,
+    target: MarkdownTask,
+  ): Promise<{ depth: number; rootId: string }> {
+    const parsed = tasks(parseDocument(await readFile(prdPath, "utf8")).lines);
+    const byId = new Map(
+      parsed.map(({ task }) => [task.id.toLowerCase(), task]),
+    );
+    const parentPattern = /\(parent:\s*([A-Za-z][A-Za-z0-9]*-\d\w*)\)/i;
+    const visited = new Set<string>();
+    let current = target;
+    let depth = 0;
+    while (true) {
+      const key = current.id.toLowerCase();
+      if (visited.has(key))
+        throw new MarkdownTaskError(
+          `Remediation parent cycle detected at task '${current.id}'.`,
+        );
+      visited.add(key);
+      const parentId = current.description.match(parentPattern)?.[1];
+      if (!parentId) return { depth, rootId: current.id };
+      const parent = byId.get(parentId.toLowerCase());
+      if (!parent)
+        throw new MarkdownTaskError(
+          `Remediation parent '${parentId}' for task '${current.id}' no longer exists.`,
+        );
+      current = parent;
+      depth++;
+    }
+  }
+
   async isTaskUnchecked(
     prdPath: string,
     target: MarkdownTask,

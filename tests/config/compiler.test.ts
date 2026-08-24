@@ -93,6 +93,7 @@ describe("compileWorkflow", () => {
       { name: "GLOBAL2", value: "value", secret: false },
     ]);
     expect(plan.maxIterations).toBe(20);
+    expect(plan.maxRemediationAttempts).toBe(2);
     expect(plan.defaultHarness).toBe("pi");
     expect(plan.model).toBe("test-model");
     expect(plan.agent).toBe("test-agent");
