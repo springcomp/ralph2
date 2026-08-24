@@ -34,9 +34,11 @@ describe("extension registry - built-in templates", () => {
   it("blueprint template reuses goal files and configures source seeding", () => {
     const goal = defaultExtensionRegistry.template("goal");
     const blueprint = defaultExtensionRegistry.template("blueprint");
-    expect(blueprint?.files.get("ralph.prompt.md")).toBe(
+    expect(blueprint?.files.get("ralph.prompt.md")).not.toBe(
       goal?.files.get("ralph.prompt.md"),
     );
+    expect(blueprint?.files.get("ralph.prompt.md")).toContain("{PRD}");
+    expect(blueprint?.files.get("ralph.prompt.md")).toContain("{PROGRESS}");
     expect(blueprint?.files.get("progress.txt")).toBe(
       goal?.files.get("progress.txt"),
     );
@@ -108,7 +110,7 @@ describe("extension registry - custom registrations", () => {
     });
     expect(registry.template("goal")).toBeDefined();
     expect(registry.template("custom")).toBeDefined();
-    expect(registry.templates).toHaveLength(2);
+    expect(registry.templates).toHaveLength(3);
   });
 
   it("merges custom producers with built-ins", () => {

@@ -117,6 +117,38 @@ function signalNameFromNumber(
   return (entry?.[0] as NodeJS.Signals | undefined) ?? null;
 }
 
+const ptyStopSettleGraceMs = 250;
+
+function terminatePty(child: IPty): void {
+  if (process.platform === "win32") {
+    try {
+      child.kill();
+    } catch {
+      // already exited
+    }
+    if (child.pid > 0) {
+      const killer = spawn(
+        "taskkill",
+        ["/pid", String(child.pid), "/t", "/f"],
+        {
+          shell: false,
+          stdio: "ignore",
+          windowsHide: true,
+        },
+      );
+      killer.on("error", () => {
+        // ignore best-effort cleanup failures
+      });
+    }
+    return;
+  }
+  try {
+    child.kill("SIGTERM");
+  } catch {
+    // already exited
+  }
+}
+
 export class RealProcessRunner implements ProcessRunner {
   async run(request: ProcessRequest): Promise<ProcessResult> {
     if (request.outputPath)
@@ -165,28 +197,49 @@ export class RealProcessRunner implements ProcessRunner {
     let cancelled = false;
     let settled = false;
     let timer: NodeJS.Timeout | undefined;
+    let stopFinalizeTimer: NodeJS.Timeout | undefined;
 
     return await new Promise<ProcessResult>((resolve) => {
+      const finalize = async (
+        exitCode: number | null,
+        signal: NodeJS.Signals | null,
+      ) => {
+        if (settled) return;
+        settled = true;
+        if (timer) clearTimeout(timer);
+        if (stopFinalizeTimer) clearTimeout(stopFinalizeTimer);
+        request.signal?.removeEventListener("abort", abort);
+        dataSubscription.dispose();
+        exitSubscription.dispose();
+        const tail = redactor.flush();
+        if (tail) {
+          request.onOutput?.(tail, "stdout");
+          await log?.write(tail);
+          process.stdout.write(tail);
+        }
+        await log?.close();
+        resolve({
+          exitCode,
+          signal,
+          timedOut,
+          cancelled,
+        });
+      };
+
       const stop = (reason: "timeout" | "cancel") => {
         if (settled) return;
         if (reason === "timeout") timedOut = true;
         else cancelled = true;
-        try {
-          child.kill();
-        } catch {
-          // already exited
+        terminatePty(child);
+        if (process.platform === "win32" && !stopFinalizeTimer) {
+          stopFinalizeTimer = setTimeout(() => {
+            void finalize(null, null);
+          }, ptyStopSettleGraceMs);
         }
       };
       const abort = () => stop("cancel");
-      if (request.signal) {
-        if (request.signal.aborted) abort();
-        else request.signal.addEventListener("abort", abort, { once: true });
-      }
-      if (request.timeoutMs !== undefined && request.timeoutMs >= 0) {
-        timer = setTimeout(() => stop("timeout"), request.timeoutMs);
-      }
 
-      child.onData((chunk) => {
+      const dataSubscription = child.onData((chunk) => {
         const text = redactor.push(chunk);
         if (text) {
           request.onOutput?.(text, "stdout");
@@ -194,27 +247,17 @@ export class RealProcessRunner implements ProcessRunner {
           process.stdout.write(text);
         }
       });
-      child.onExit(({ exitCode, signal }) => {
-        if (settled) return;
-        settled = true;
-        if (timer) clearTimeout(timer);
-        request.signal?.removeEventListener("abort", abort);
-        void (async () => {
-          const tail = redactor.flush();
-          if (tail) {
-            request.onOutput?.(tail, "stdout");
-            await log?.write(tail);
-            process.stdout.write(tail);
-          }
-          await log?.close();
-          resolve({
-            exitCode,
-            signal: signalNameFromNumber(signal),
-            timedOut,
-            cancelled,
-          });
-        })();
+      const exitSubscription = child.onExit(({ exitCode, signal }) => {
+        void finalize(exitCode, signalNameFromNumber(signal));
       });
+
+      if (request.signal) {
+        if (request.signal.aborted) abort();
+        else request.signal.addEventListener("abort", abort, { once: true });
+      }
+      if (request.timeoutMs !== undefined && request.timeoutMs >= 0) {
+        timer = setTimeout(() => stop("timeout"), request.timeoutMs);
+      }
     });
   }
 
