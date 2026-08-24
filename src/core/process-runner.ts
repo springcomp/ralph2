@@ -104,7 +104,27 @@ function resolveEnvironment(request: ProcessRequest): ResolvedEnvironment {
     if (typeof configured !== "string" && configured.secret)
       secrets.push(value);
   }
+  configureTerminalEnvironment(env, request.env);
   return { env, secrets };
+}
+
+function configureTerminalEnvironment(
+  env: NodeJS.ProcessEnv,
+  configuredEnvironment: ProcessEnvironment | undefined,
+): void {
+  const terminalVariables: Record<string, string> = {
+    TERM: "xterm-256color",
+    COLORTERM: "truecolor",
+    FORCE_COLOR: "1",
+    CLICOLOR_FORCE: "1",
+    PY_COLORS: "1",
+  };
+  for (const [name, value] of Object.entries(terminalVariables)) {
+    const configured = Object.keys(configuredEnvironment ?? {}).some(
+      (key) => key.toLowerCase() === name.toLowerCase(),
+    );
+    if (!configured) env[name] = value;
+  }
 }
 
 function signalNameFromNumber(
@@ -162,6 +182,7 @@ export class RealProcessRunner implements ProcessRunner {
       const result = await this.runWithPty(request, log);
       if (result) return result;
     }
+
     return await this.runWithPipes(request, log);
   }
 
@@ -178,10 +199,6 @@ export class RealProcessRunner implements ProcessRunner {
     }
 
     const { env, secrets } = resolveEnvironment(request);
-    // Tell color-detecting CLIs what kind of terminal they are attached to.
-    env.TERM ??= "xterm-256color";
-    env.COLORTERM ??= "truecolor";
-    if (env.NO_COLOR === undefined) env.FORCE_COLOR ??= "1";
     let child: IPty;
     try {
       child = pty.spawn(request.command, [...(request.args ?? [])], {

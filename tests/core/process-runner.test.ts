@@ -85,6 +85,24 @@ describe("RealProcessRunner", () => {
     expect(output.join("")).toBe("prefix-[REDACTED]-suffix");
   });
 
+  it("preserves color environment for piped subprocesses", async () => {
+    const output: string[] = [];
+    const script = nodeScript(
+      "process.stdout.write([process.env.TERM, process.env.COLORTERM, process.env.FORCE_COLOR, process.env.CLICOLOR_FORCE, process.env.PY_COLORS, '\\u001b[31mred\\u001b[0m'].join(':'))",
+    );
+
+    const result = await runner.run({
+      ...script,
+      usePty: false,
+      onOutput: (text) => output.push(text),
+    });
+
+    expect(result.exitCode).toBe(0);
+    expect(output.join("")).toContain(
+      "xterm-256color:truecolor:1:1:1:\u001b[31mred\u001b[0m",
+    );
+  });
+
   it("reports nonzero exits and signals", async () => {
     const script = nodeScript("process.exit(7)");
     await expect(runner.run(script)).resolves.toMatchObject({ exitCode: 7 });
