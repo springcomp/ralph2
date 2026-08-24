@@ -52,6 +52,18 @@ export interface TaskFileSet {
   prompt: string;
   completionSignal: string;
 }
+export interface TriggerPlan {
+  kind: string;
+  source: string;
+  pollIntervalMs: number;
+}
+export interface CircuitBreakerCheckPlan {
+  kind: string;
+  threshold: number;
+}
+export interface CircuitBreakerPlan {
+  checks: CircuitBreakerCheckPlan[];
+}
 export interface WorkflowPlan {
   workspace: string;
   environment?: EnvironmentVariablePlan[];
@@ -86,6 +98,8 @@ export interface WorkflowPlan {
   statusFormat: string;
   /** CLI-resolved --pty/--no-pty override; undefined = auto-detect per stage */
   ptyDefault?: boolean;
+  trigger?: TriggerPlan;
+  circuitBreaker?: CircuitBreakerPlan;
 }
 export class WorkflowCompileError extends Error {
   constructor(readonly diagnostics: readonly Diagnostic[]) {
@@ -230,6 +244,32 @@ export function compileWorkflow(
           : undefined,
       }
     : undefined;
+  const prdPath = path(workspace, tasks.prd) ?? "";
+  const triggerDto = document.trigger;
+  const trigger: TriggerPlan | undefined = triggerDto
+    ? {
+        kind: text(triggerDto.kind),
+        source: path(workspace, triggerDto.source) ?? prdPath,
+        pollIntervalMs:
+          triggerDto.pollInterval === undefined ||
+          triggerDto.pollInterval === null ||
+          triggerDto.pollInterval === ""
+            ? 5000
+            : parseTimeout(triggerDto.pollInterval),
+      }
+    : undefined;
+  const circuitBreakerDto = document.circuitBreaker;
+  const circuitBreaker: CircuitBreakerPlan | undefined = circuitBreakerDto
+    ? {
+        checks: (circuitBreakerDto.checks ?? []).map((c) => ({
+          kind: text(c.kind),
+          threshold:
+            typeof c.threshold === "number" && c.threshold > 0
+              ? c.threshold
+              : 3,
+        })),
+      }
+    : undefined;
   return {
     workspace,
     environment: Array.isArray(document.environment)
@@ -245,7 +285,7 @@ export function compileWorkflow(
         ? document.maxRemediationAttempts
         : 2),
     tasks: {
-      prd: path(workspace, tasks.prd) ?? "",
+      prd: prdPath,
       progress: path(workspace, tasks.progress) ?? "",
       prompt: path(workspace, tasks.prompt) ?? "",
       completionSignal: text(tasks.completionSignal),
@@ -287,5 +327,7 @@ export function compileWorkflow(
       "🔄️ Iteration {ITERATION:000} - {TYP}-{NUM} - {TASK} (model: `{MODEL}`)",
     ),
     ptyDefault: options.pty,
+    trigger,
+    circuitBreaker,
   };
 }

@@ -264,6 +264,34 @@ describe("compileWorkflow", () => {
     expect(plan.continuation?.completeWhen?.check).toBeUndefined();
   });
 
+  it("compiles a trigger and defaults its source to the PRD path", () => {
+    const withTrigger: V1WorkflowDocument = {
+      ...baseDoc,
+      trigger: { kind: "taskAppears", pollInterval: "10s" },
+    };
+    const plan = compileWorkflow(withTrigger, "/mock/project");
+    expect(plan.trigger?.kind).toBe("taskAppears");
+    expect(plan.trigger?.pollIntervalMs).toBe(10000);
+    expect(plan.trigger?.source).toBe(plan.tasks.prd);
+  });
+
+  it("compiles a trigger with an explicit source and default poll interval", () => {
+    const withTrigger: V1WorkflowDocument = {
+      ...baseDoc,
+      trigger: { kind: "taskAppears", source: "tasks/BLUEPRINT.md" },
+    };
+    const plan = compileWorkflow(withTrigger, "/mock/project");
+    expect(plan.trigger?.source).toBe(
+      resolve("/mock/project/work-dir/tasks/BLUEPRINT.md"),
+    );
+    expect(plan.trigger?.pollIntervalMs).toBe(5000);
+  });
+
+  it("leaves trigger undefined when not configured", () => {
+    const plan = compileWorkflow(baseDoc, "/mock/project");
+    expect(plan.trigger).toBeUndefined();
+  });
+
   it("compiles generatedGoal continuation with completeWhen including check", () => {
     const doc: V1WorkflowDocument = {
       ...baseDoc,

@@ -24,8 +24,9 @@ export function workflowSchema(registry: ExtensionRegistry): JsonSchema {
       },
     ],
   };
-  const extensionNames = (kind: "actions" | "predicates") =>
-    registry[kind].map((registration) => registration.name);
+  const extensionNames = (
+    kind: "actions" | "predicates" | "triggers" | "circuitBreakers",
+  ) => registry[kind].map((registration) => registration.name);
   const command: JsonSchema = {
     type: "object",
     properties: {
@@ -173,6 +174,31 @@ export function workflowSchema(registry: ExtensionRegistry): JsonSchema {
             then: { required: ["producer", "completeWhen", "nextTask"] },
           },
         ],
+      },
+      trigger: {
+        type: "object",
+        required: ["kind"],
+        properties: {
+          kind: { enum: extensionNames("triggers") },
+          source: { type: "string", minLength: 1 },
+          pollInterval: { type: ["string", "number"] },
+        },
+      },
+      circuitBreaker: {
+        type: "object",
+        properties: {
+          checks: {
+            type: "array",
+            items: {
+              type: "object",
+              required: ["kind"],
+              properties: {
+                kind: { enum: extensionNames("circuitBreakers") },
+                threshold: { type: "number", exclusiveMinimum: 0 },
+              },
+            },
+          },
+        },
       },
     },
     $defs: {
