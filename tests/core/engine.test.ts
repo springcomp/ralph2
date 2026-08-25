@@ -12,6 +12,7 @@ import type {
   ProcessResult,
 } from "../../src/core/process-runner.js";
 import { MarkdownTaskSource } from "../../src/task-source/markdown-task-source.js";
+import { createExtensionRegistry } from "../../src/extensions/registry.js";
 
 const createStagePlan = (overrides: Partial<StagePlan> = {}): StagePlan => ({
   name: "stage",
@@ -1005,5 +1006,98 @@ describe("WorkflowEngine", () => {
     const engine = new WorkflowEngine(customRunner, new MarkdownTaskSource());
     const result = await engine.runAsync(createPlan());
     expect(result.status).toBe("complete");
+  });
+
+  it("continues after unknown and failing circuit-breaker checks", async () => {
+    await writeFile(prdPath, "- [ ] TASK-001 - Feature\n", "utf8");
+    const runner = {
+      async run(): Promise<ProcessResult> {
+        await writeFile(prdPath, "- [x] TASK-001 - Feature\n", "utf8");
+        return { exitCode: 0, signal: null, timedOut: false, cancelled: false };
+      },
+    };
+    const registry = createExtensionRegistry({
+      circuitBreakers: [
+        {
+          name: "throws",
+          description: "test",
+          properties: [],
+          callback: async () => {
+            throw new Error("check failed");
+          },
+        },
+      ],
+    });
+    const events: WorkflowEvent[] = [];
+    const result = await new WorkflowEngine(
+      runner,
+      new MarkdownTaskSource(),
+      undefined,
+      { onEvent: (event) => void events.push(event) },
+      registry,
+    ).run(
+      createPlan({
+        circuitBreaker: {
+          checks: [
+            { kind: "missing", threshold: 1 },
+            { kind: "throws", threshold: 1 },
+          ],
+        },
+      }),
+    );
+
+    expect(result.status).toBe("complete");
+    expect(events.map(({ type }) => type)).toContain("circuitBreaker.error");
+  });
+
+  it("terminates cleanly when the configured trigger is unknown", async () => {
+    await writeFile(prdPath, "", "utf8");
+    const events: WorkflowEvent[] = [];
+    const result = await new WorkflowEngine(
+      new FakeProcessRunner(),
+      new MarkdownTaskSource(),
+      undefined,
+      { onEvent: (event) => void events.push(event) },
+    ).run(
+      createPlan({
+        trigger: { kind: "missing", source: prdPath, pollIntervalMs: 1 },
+      }),
+    );
+
+    expect(result.status).toBe("complete");
+    expect(events.map(({ type }) => type)).toContain("trigger.error");
+  });
+
+  it("reports timed-out and canceled stage failures distinctly", async () => {
+    const runFailure = async (failure: ProcessResult) => {
+      await writeFile(prdPath, "- [ ] TASK-001 - Feature\n", "utf8");
+      return new WorkflowEngine(
+        new FakeProcessRunner([failure]),
+        new MarkdownTaskSource(),
+      ).run(createPlan());
+    };
+
+    await expect(
+      runFailure({
+        exitCode: null,
+        signal: null,
+        timedOut: true,
+        cancelled: false,
+      }),
+    ).resolves.toMatchObject({
+      status: "processFailure",
+      message: "Process timed out.",
+    });
+    await expect(
+      runFailure({
+        exitCode: null,
+        signal: null,
+        timedOut: false,
+        cancelled: true,
+      }),
+    ).resolves.toMatchObject({
+      status: "canceled",
+      message: "Process exited with code null.",
+    });
   });
 });

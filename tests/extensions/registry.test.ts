@@ -1,9 +1,20 @@
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import type { StagePlan } from "../../src/config/compiler.js";
+import type { ProcessResult } from "../../src/core/process-runner.js";
+import type { TaskSource } from "../../src/core/task.js";
+import type { PlaceholderContext } from "../../src/placeholders/placeholders.js";
+import { scheduleTaskAction } from "../../src/extensions/actions/schedule-task.js";
 import {
   createExtensionRegistry,
   defaultExtensionRegistry,
 } from "../../src/extensions/registry.js";
 import { acceptedExitCodePredicate } from "../../src/extensions/predicates/accepted-exit-code.js";
+import { fileExistsPredicate } from "../../src/extensions/predicates/file-exists.js";
+import { fileMissingPredicate } from "../../src/extensions/predicates/file-missing.js";
+import { repeatedFailureSignatureCircuitBreaker } from "../../src/extensions/circuit-breakers/repeated-failure-signature.js";
 
 describe("extension registry - built-in templates", () => {
   it("registers the goal template", () => {
@@ -76,6 +87,144 @@ describe("acceptedExitCode predicate", () => {
     });
 
     expect(result).toBe(false);
+  });
+
+  it("returns the stage result when a check is configured", async () => {
+    const check = { name: "check" } as never;
+    await expect(
+      acceptedExitCodePredicate.callback({
+        check,
+        expand: (value) => value,
+        runStage: async () => ({ success: true }),
+      }),
+    ).resolves.toBe(true);
+    await expect(
+      acceptedExitCodePredicate.callback({
+        check,
+        expand: (value) => value,
+        runStage: async () => ({ success: false }),
+      }),
+    ).resolves.toBe(false);
+  });
+});
+
+describe("file predicates", () => {
+  it("detect whether a file exists or is missing", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "ralph-predicates-"));
+    const path = join(directory, "present.txt");
+    await writeFile(path, "present", "utf8");
+    const context = {
+      expand: (value: string) => value,
+      runStage: async () => ({ success: true }),
+    };
+
+    await expect(
+      fileExistsPredicate.callback({ ...context, path }),
+    ).resolves.toBe(true);
+    await expect(
+      fileExistsPredicate.callback({
+        ...context,
+        path: join(directory, "missing"),
+      }),
+    ).resolves.toBe(false);
+    await expect(
+      fileMissingPredicate.callback({ ...context, path }),
+    ).resolves.toBe(false);
+    await expect(
+      fileMissingPredicate.callback({
+        ...context,
+        path: join(directory, "missing"),
+      }),
+    ).resolves.toBe(true);
+    await expect(
+      fileExistsPredicate.callback({ ...context }),
+    ).resolves.toBe(false);
+    await expect(
+      fileMissingPredicate.callback({ ...context }),
+    ).resolves.toBe(true);
+
+    await rm(directory, { recursive: true, force: true });
+  });
+});
+
+describe("scheduleTask action", () => {
+  it("schedules the expanded failure task and emits an event", async () => {
+    const scheduled: string[] = [];
+    const emitted: unknown[] = [];
+    await scheduleTaskAction.callback({
+      source: {
+        scheduleTask: async (_path: string, task: string): Promise<void> => {
+          scheduled.push(task);
+        },
+      } as TaskSource,
+      prdPath: "PRD.md",
+      stage: { name: "build", failureTask: "FIX-{ITERATION}" } as StagePlan,
+      values: { iteration: 3 } as PlaceholderContext,
+      result: {
+        exitCode: 1,
+        signal: null,
+        timedOut: false,
+        cancelled: false,
+      } as ProcessResult,
+      iteration: 3,
+      expand: (value) => value.replace("{ITERATION}", "003"),
+      emit: async (event) => {
+        emitted.push(event);
+      },
+    });
+    expect(scheduled).toEqual(["FIX-003"]);
+    expect(emitted).toHaveLength(1);
+  });
+
+  it("uses an empty task when no failure task is configured", async () => {
+    let scheduled = "";
+    await scheduleTaskAction.callback({
+      source: {
+        scheduleTask: async (_path: string, task: string): Promise<void> => {
+          scheduled = task;
+        },
+      } as TaskSource,
+      prdPath: "PRD.md",
+      stage: { name: "build" } as StagePlan,
+      values: { iteration: 1 } as PlaceholderContext,
+      result: {
+        exitCode: 1,
+        signal: null,
+        timedOut: false,
+        cancelled: false,
+      } as ProcessResult,
+      iteration: 1,
+      expand: (value) => value,
+      emit: async () => {},
+    });
+    expect(scheduled).toBe("");
+  });
+});
+
+describe("repeatedFailureSignature circuit breaker", () => {
+  it("resets without a failure and identifies failed stages", async () => {
+    const context = {
+      expand: (value: string) => value,
+      runStage: async () => ({ success: true }),
+      kind: "repeatedFailureSignature",
+      workspace: "",
+      iteration: 1,
+    };
+    await expect(
+      repeatedFailureSignatureCircuitBreaker.callback(context),
+    ).resolves.toBeNull();
+    await expect(
+      repeatedFailureSignatureCircuitBreaker.callback({
+        ...context,
+        lastFailure: { stage: "build", exitCode: null },
+      }),
+    ).resolves.toBe("build:null");
+    await expect(
+      repeatedFailureSignatureCircuitBreaker.callback({
+        ...context,
+        lastFailure: { stage: "test", exitCode: 2 },
+      }),
+    ).resolves.toBe("test:2");
   });
 });
 

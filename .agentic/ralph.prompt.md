@@ -41,6 +41,7 @@ Where:
   - Follow instructions as worded by TASK.
   - Check inline task when done.
 
+
 ### FIX tasks
 
 - This is a FIX task:
@@ -71,5 +72,7 @@ A dirty working copy means task is incomplete. Finish pending work or document a
 - Pick the first **unchecked** task.
 - Focus on that **ONE** task only.
 - Check the task when done with (`- [x]`).
+- KEEP code coverage above 90%.
+- NEVER leave uncommitted work in the repository.
 - NEVER consider later tasks.
 - NEVER delegate later tasks.

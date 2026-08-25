@@ -144,6 +144,56 @@ describe("CLI Application", () => {
       );
     });
 
+    it("shows circuit breaker documentation with no properties", async () => {
+      await createProgram().parseAsync([
+        "node",
+        "ralph",
+        "explain",
+        "circuitBreaker",
+        "noProgress",
+      ]);
+      expect(consoleLogSpy).toHaveBeenCalledWith(
+        expect.stringContaining("properties:\n  (none)"),
+      );
+    });
+
+    it("rejects an unknown extension in explain", async () => {
+      await createProgram().parseAsync([
+        "node",
+        "ralph",
+        "explain",
+        "predicate",
+        "missing",
+      ]);
+      expect(process.exitCode).toBe(WorkflowExitCodes.InvalidConfiguration);
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        "Unknown predicate 'missing'.",
+      );
+    });
+
+    it("formats optional extension properties", async () => {
+      const extensions = createExtensionRegistry({
+        predicates: [
+          {
+            name: "optional",
+            description: "Optional property test",
+            properties: [{ name: "value", description: "A value" }],
+            callback: async () => true,
+          },
+        ],
+      });
+      await createProgram(extensions).parseAsync([
+        "node",
+        "ralph",
+        "explain",
+        "predicate",
+        "optional",
+      ]);
+      expect(consoleLogSpy).toHaveBeenCalledWith(
+        expect.stringContaining("  value: A value"),
+      );
+    });
+
     it("rejects an unknown promoted subcommand", async () => {
       await createProgram().parseAsync(["node", "ralph", "templates", "list"]);
       expect(process.exitCode).toBe(WorkflowExitCodes.InvalidConfiguration);
