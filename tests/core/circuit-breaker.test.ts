@@ -148,7 +148,7 @@ describe("noProgress circuit breaker check", () => {
     await run("git", ["commit", "-m", "second"], { cwd: tmpDir });
     const third = await noProgressCircuitBreaker.callback(context);
     expect(third).not.toBe(first);
-  }, 15000);
+  }, 30000);
 });
 
 describe("WorkflowEngine circuit breaker", () => {

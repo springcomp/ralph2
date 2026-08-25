@@ -72,4 +72,16 @@ describe("atomicWrite", () => {
       error,
     );
   });
+
+  it("stops retrying after the transient rename retry budget", async () => {
+    const error = Object.assign(new Error("busy"), { code: "EBUSY" });
+    fsState.renameMock.mockRejectedValue(error);
+    const root = await mkdtemp(join(tmpdir(), "ralph-atomic-"));
+    roots.push(root);
+
+    await expect(atomicWrite(join(root, "state.json"), "content")).rejects.toBe(
+      error,
+    );
+    expect(fsState.renameMock).toHaveBeenCalledTimes(6);
+  });
 });

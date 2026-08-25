@@ -1,7 +1,7 @@
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { StagePlan, WorkflowPlan } from "../../src/config/compiler.js";
 import { WorkflowEngine, type WorkflowEvent } from "../../src/core/engine.js";
 import { WorkflowExitCodes } from "../../src/core/exit-codes.js";
@@ -12,6 +12,7 @@ import type {
 } from "../../src/core/process-runner.js";
 import { createExtensionRegistry } from "../../src/extensions/registry.js";
 import type { TriggerRegistration } from "../../src/extensions/registry.js";
+import { taskAppearsTrigger } from "../../src/extensions/triggers/task-appears.js";
 import { MarkdownTaskSource } from "../../src/task-source/markdown-task-source.js";
 
 const createStagePlan = (overrides: Partial<StagePlan> = {}): StagePlan => ({
@@ -287,15 +288,80 @@ describe("WorkflowEngine triggers", () => {
       { signal: controller.signal },
     );
     // Let it idle, then drop in a task for the poller to discover.
-    await new Promise((r) => setTimeout(r, 40));
     await writeFile(prdPath, "- [ ] TASK-001 - Work\n", "utf8");
-    // After it drains and idles again, cancel to end the run.
-    await new Promise((r) => setTimeout(r, 60));
+    await vi.waitFor(() => expect(runner.requests).toHaveLength(1), {
+      timeout: 2000,
+    });
     controller.abort();
     const result = await runPromise;
 
     expect(runner.requests.length).toBeGreaterThanOrEqual(1);
     expect(result.status).toBe("canceled");
     expect(await readFile(prdPath, "utf8")).toContain("[x] TASK-001");
+  });
+
+  it("fires the built-in trigger for an already available task", async () => {
+    await writeFile(prdPath, "- [ ] TASK-001 - Work\n", "utf8");
+
+    const signal = await taskAppearsTrigger.callback({
+      kind: "taskAppears",
+      source: prdPath,
+      pollIntervalMs: 1,
+      workspace: tmpDir,
+      taskSource: new MarkdownTaskSource(),
+      expand: (value) => value,
+      emit: async () => {},
+    });
+
+    expect(signal).toEqual({ reason: "Unchecked task TASK-001 appeared." });
+  });
+
+  it("returns null when polling is aborted after a source failure", async () => {
+    const controller = new AbortController();
+    let callbackStarted: (() => void) | undefined;
+    const started = new Promise<void>((resolve) => {
+      callbackStarted = resolve;
+    });
+    const taskSource = new MarkdownTaskSource();
+    vi.spyOn(taskSource, "getFirstUncheckedTask").mockImplementation(
+      async () => {
+        callbackStarted?.();
+        throw new Error("source unavailable");
+      },
+    );
+
+    const callback = taskAppearsTrigger.callback({
+      kind: "taskAppears",
+      source: prdPath,
+      pollIntervalMs: 1000,
+      workspace: tmpDir,
+      taskSource,
+      expand: (value) => value,
+      emit: async () => {},
+      signal: controller.signal,
+    });
+
+    await started;
+    controller.abort();
+
+    await expect(callback).resolves.toBeNull();
+  });
+
+  it("returns null immediately when polling starts already aborted", async () => {
+    const controller = new AbortController();
+    controller.abort();
+
+    const signal = await taskAppearsTrigger.callback({
+      kind: "taskAppears",
+      source: prdPath,
+      pollIntervalMs: 1000,
+      workspace: tmpDir,
+      taskSource: new MarkdownTaskSource(),
+      expand: (value) => value,
+      emit: async () => {},
+      signal: controller.signal,
+    });
+
+    expect(signal).toBeNull();
   });
 });

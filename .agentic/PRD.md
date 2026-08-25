@@ -3,3 +3,8 @@
 - [x] FIX-003 - Unit tests failed or coverage worse; inspect __test.log
 - [x] FIX-004 - Unit tests failed or coverage worse; inspect __test.log
 - [x] FIX-005 - Task changes were not committed with jj; inspect __commit.log
+- [x] FIX-006 - Unit tests failed or coverage worse; inspect __test.log
+- [x] FIX-007 - Unit tests failed or coverage worse; inspect __test.log
+- [x] FIX-008 - Unit tests failed or coverage worse; inspect __test.log
+- [x] FIX-001 - Fix unit tests failed from __test.log or improve coverage as per requirements
+- [x] FIX-002 - Do not leave changes uncommitted from __commit.log

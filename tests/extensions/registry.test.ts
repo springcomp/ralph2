@@ -3,6 +3,7 @@ import {
   createExtensionRegistry,
   defaultExtensionRegistry,
 } from "../../src/extensions/registry.js";
+import { acceptedExitCodePredicate } from "../../src/extensions/predicates/accepted-exit-code.js";
 
 describe("extension registry - built-in templates", () => {
   it("registers the goal template", () => {
@@ -62,6 +63,19 @@ describe("extension registry - built-in templates", () => {
 
   it("returns undefined for unknown template", () => {
     expect(defaultExtensionRegistry.template("unknown")).toBeUndefined();
+  });
+});
+
+describe("acceptedExitCode predicate", () => {
+  it("returns false when no check is configured", async () => {
+    const result = await acceptedExitCodePredicate.callback({
+      kind: "acceptedExitCode",
+      runStage: async () => {
+        throw new Error("runStage should not be called");
+      },
+    });
+
+    expect(result).toBe(false);
   });
 });
 
