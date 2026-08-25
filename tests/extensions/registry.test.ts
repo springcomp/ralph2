@@ -69,7 +69,7 @@ describe("extension registry - built-in templates", () => {
 describe("acceptedExitCode predicate", () => {
   it("returns false when no check is configured", async () => {
     const result = await acceptedExitCodePredicate.callback({
-      kind: "acceptedExitCode",
+      expand: (value) => value,
       runStage: async () => {
         throw new Error("runStage should not be called");
       },

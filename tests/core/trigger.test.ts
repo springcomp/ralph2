@@ -347,6 +347,30 @@ describe("WorkflowEngine triggers", () => {
     await expect(callback).resolves.toBeNull();
   });
 
+  it("returns null when the signal aborts before the polling delay starts", async () => {
+    const controller = new AbortController();
+    const taskSource = new MarkdownTaskSource();
+    vi.spyOn(taskSource, "getFirstUncheckedTask").mockImplementation(
+      async () => {
+        controller.abort();
+        return null;
+      },
+    );
+
+    const signal = await taskAppearsTrigger.callback({
+      kind: "taskAppears",
+      source: prdPath,
+      pollIntervalMs: 1000,
+      workspace: tmpDir,
+      taskSource,
+      expand: (value) => value,
+      emit: async () => {},
+      signal: controller.signal,
+    });
+
+    expect(signal).toBeNull();
+  });
+
   it("returns null immediately when polling starts already aborted", async () => {
     const controller = new AbortController();
     controller.abort();

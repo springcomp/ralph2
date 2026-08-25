@@ -8,3 +8,5 @@
 - [x] FIX-008 - Unit tests failed or coverage worse; inspect __test.log
 - [x] FIX-001 - Fix unit tests failed from __test.log or improve coverage as per requirements
 - [x] FIX-002 - Do not leave changes uncommitted from __commit.log
+- [x] FIX-003 - Fix unit tests failed from __test.log or improve coverage as per requirements
+- [ ] JJ-004 - Do not leave changes uncommitted from __commit.log

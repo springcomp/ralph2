@@ -91,7 +91,7 @@ postAgent:
       combined: .agentic/__commit.log
     onFailure:
       action: scheduleTask
-      task: "- [ ] FIX-{ITERATION:000} - Do not leave changes uncommitted from __commit.log"
+      task: "- [ ] JJ-{ITERATION:000} - Do not leave changes uncommitted from __commit.log"
 
 verification:
   requireTaskChecked: true

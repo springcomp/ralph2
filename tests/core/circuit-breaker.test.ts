@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
@@ -119,6 +119,32 @@ describe("noProgress circuit breaker check", () => {
       iteration: 1,
       expand: (v) => v,
     });
+    expect(signature).toBeNull();
+  });
+
+  it("returns null when a jj marker exists but jj cannot inspect the workspace", async () => {
+    await mkdir(join(tmpDir, ".jj"));
+
+    const signature = await noProgressCircuitBreaker.callback({
+      kind: "noProgress",
+      workspace: tmpDir,
+      iteration: 1,
+      expand: (v) => v,
+    });
+
+    expect(signature).toBeNull();
+  });
+
+  it("returns null when a git marker exists but git cannot inspect the workspace", async () => {
+    await mkdir(join(tmpDir, ".git"));
+
+    const signature = await noProgressCircuitBreaker.callback({
+      kind: "noProgress",
+      workspace: tmpDir,
+      iteration: 1,
+      expand: (v) => v,
+    });
+
     expect(signature).toBeNull();
   });
 

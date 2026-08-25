@@ -29,9 +29,10 @@ Where:
 ### Tasks
 
 - `FIX-` tasks
-- `T-` or any other tasks: default processing.
+- `GIT-` or `JJ-` tasks
+- `TASK-` or any other tasks: default processing.
 
-### T or default tasks
+### TASK or default tasks
 
 - If REF is specified:
   - Follow instructions from REF.
@@ -46,6 +47,24 @@ Where:
 - Check either of the following files exist:
   - `__build.log`: read and fix build failures.
   - `__test.log`: read and fix failed tests.
+
+### GIT/JJ execution
+
+This is a source control task.
+
+You MUST not leave, uncommitted work in the repository.
+
+Verify whether the work is complete. Run `git diff` and `git status`,
+or `jj diff` and `jj status` to see uncommitted work. Run tests.
+
+A dirty working copy means task is incomplete. Finish pending work or document a blocker in `{PROGRESS}`.
+
+| Working tree | Tests | Action |
+| --- | --- | --- |
+| Clean | Pass | Verify acceptance, then mark done |
+| Clean | Fail | Fix failures, validate, then finish task |
+| Dirty | Pass | Finish pending work, validate, then finish task |
+| Dirty | Fail | Read progress, fix or redo, then finish task |
 
 ### Rules
 
