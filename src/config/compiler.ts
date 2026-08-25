@@ -8,7 +8,7 @@ import {
 } from "../extensions/registry.js";
 import { PlaceholderExpander } from "../placeholders/placeholders.js";
 import type { PlaceholderContext } from "../placeholders/placeholders.js";
-import { lowerSteps } from "./lowering/steps.js";
+import { lowerSteps, runStage } from "./lowering/steps.js";
 import { lowerWorkSource } from "./lowering/worksource.js";
 import type { CommandDto, V1WorkflowDocument } from "./schema-v1.js";
 import {
@@ -371,25 +371,43 @@ export function compileCore(
     steps: lowerSteps(plan, source, expander),
     guards: (plan.circuitBreaker?.checks ?? []).flatMap((check) => {
       const registration = extensions.circuitBreaker(check.kind);
-      return registration
-        ? [
-            {
+      return [
+        {
+          kind: check.kind,
+          threshold: check.threshold,
+          signature: (ctx: import("../core/plan.js").CoreContext) => {
+            if (!registration)
+              throw new Error(
+                `Circuit breaker check '${check.kind}' is not registered.`,
+              );
+            return registration.callback({
               kind: check.kind,
-              threshold: check.threshold,
-              signature: (ctx: import("../core/plan.js").CoreContext) =>
-                registration.callback({
-                  kind: check.kind,
-                  workspace: plan.workspace,
-                  iteration: ctx.iteration,
-                  lastFailure: ctx.lastFailure as
-                    | { stage: string; exitCode: number | null }
-                    | undefined,
-                  expand: (value) => expander.expand(value, values(ctx)),
-                }),
-            },
-          ]
-        : [];
+              workspace: plan.workspace,
+              iteration: ctx.iteration,
+              lastFailure: ctx.lastFailure as
+                | { stage: string; exitCode: number | null }
+                | undefined,
+              expand: (value) => expander.expand(value, values(ctx)),
+            });
+          },
+        },
+      ];
     }),
+    context: (ctx) => values(ctx) as unknown as Record<string, unknown>,
+    runStage: (stage, ctx) =>
+      runStage(
+        stage as StagePlan,
+        {
+          ...ctx,
+          runner: (
+            ctx as import("../core/plan.js").CoreContext & {
+              runner: import("../core/process-runner.js").ProcessRunner;
+            }
+          ).runner,
+          expander,
+          plan,
+        } as never,
+      ),
     status: (ctx) => expander.expand(plan.statusFormat, values(ctx)),
   };
 }

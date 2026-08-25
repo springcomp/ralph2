@@ -40,11 +40,13 @@ export interface Step {
   readonly onFail: Policy;
   readonly role: "pre" | "harness" | "post" | "verify";
   readonly name: string;
+  readonly stage?: unknown;
 }
 
 export interface WorkSource {
   pull(iteration: number): Promise<Task | null>;
   afterTask?(ctx: CoreContext): Promise<void>;
+  readonly completionStatus?: "complete" | "blocked";
 }
 
 export interface Guard {
@@ -80,4 +82,6 @@ export interface CorePlan {
   readonly steps: Step[];
   readonly guards: Guard[];
   status(ctx: CoreContext): string;
+  context?(ctx: CoreContext): Record<string, unknown>;
+  runStage?(stage: unknown, ctx: CoreContext): Promise<StepResult>;
 }

@@ -46,7 +46,7 @@ const values = (ctx: CoreContext): PlaceholderContext => {
   };
 };
 
-async function runStage(
+export async function runStage(
   stage: StagePlan,
   ctx: RuntimeContext,
 ): Promise<StepResult> {
@@ -180,6 +180,7 @@ export function lowerSteps(
     name: stage.name,
     role,
     onFail: override ?? policy(stage, plan),
+    stage,
     run: (ctx) =>
       runStage(stage, {
         ...ctx,
@@ -194,13 +195,26 @@ export function lowerSteps(
   if (plan.verification.requireTaskChecked) {
     const predicate = taskUnchecked(source, plan.tasks.prd);
     const verify = { ...harness, name: "verify" };
-    steps.push(
-      make(verify, "verify", {
-        kind: "retry",
-        predicate,
-        times: plan.verification.retries,
-      }),
-    );
+    const verifyStep = make(verify, "verify", {
+      kind: "retry",
+      predicate,
+      times: plan.verification.retries,
+    });
+    const runVerify = verifyStep.run;
+    verifyStep.run = async (ctx) => {
+      const result = await runVerify(ctx);
+      if (
+        result.success &&
+        (await source.isTaskUnchecked(plan.tasks.prd, ctx.task))
+      )
+        return {
+          ...result,
+          success: false,
+          message: "Task remains unchecked.",
+        };
+      return result;
+    };
+    steps.push(verifyStep);
   }
   return steps;
 }

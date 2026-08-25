@@ -31,6 +31,9 @@ export class ChainedWorkSource implements WorkSource {
     private readonly sources: readonly WorkSource[],
     private readonly exhausted: "complete" | "blocked" = "complete",
   ) {}
+  get completionStatus(): "complete" | "blocked" {
+    return this.exhausted;
+  }
   async pull(iteration: number): Promise<Task | null> {
     while (this.index < this.sources.length) {
       const task = await this.sources[this.index].pull(iteration);
@@ -92,6 +95,9 @@ export class TriggerWorkSource implements WorkSource {
     private readonly plan: WorkflowPlan,
     private readonly extensions: ExtensionRegistry,
   ) {}
+  get completionStatus(): "complete" | "blocked" {
+    return this.inner.completionStatus ?? "complete";
+  }
   async pull(iteration: number): Promise<Task | null> {
     const task = await this.inner.pull(iteration);
     if (task) return task;
@@ -123,10 +129,13 @@ export function lowerWorkSource(
     continuation?.kind === "blueprint" &&
     continuation.source &&
     continuation.seedPrdFromSource
-      ? new ChainedWorkSource([
-          base,
-          new BlueprintRefill(source, plan.tasks.prd, continuation.source),
-        ])
+      ? new ChainedWorkSource(
+          [
+            base,
+            new BlueprintRefill(source, plan.tasks.prd, continuation.source),
+          ],
+          continuation.completeWhenSourceExhausted ? "complete" : "blocked",
+        )
       : base;
   if (
     continuation?.kind === "generatedGoal" &&
