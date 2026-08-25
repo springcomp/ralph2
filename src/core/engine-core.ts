@@ -4,18 +4,18 @@ import {
 } from "../extensions/registry.js";
 import { PlaceholderExpander } from "../placeholders/placeholders.js";
 import { evaluateCircuitBreaker } from "./circuit-breaker.js";
-import type {
-  WorkflowEngineCallbacks,
-  WorkflowEvent,
-  WorkflowOptions,
-  WorkflowRunResult,
-} from "./engine.js";
 import { WorkflowExitCodes } from "./exit-codes.js";
 import { WorkspaceLock } from "./locks.js";
 import { type PipelineContext, run as runPipeline } from "./pipeline.js";
 import type { CoreContext, CorePlan, StepFailure } from "./plan.js";
 import type { ProcessRunner } from "./process-runner.js";
 import type { Task, TaskSource } from "./task.js";
+import type {
+  WorkflowEngineCallbacks,
+  WorkflowEvent,
+  WorkflowOptions,
+  WorkflowRunResult,
+} from "./workflow-types.js";
 
 export class CoreEngine {
   constructor(

@@ -4,9 +4,9 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createProgram } from "../../src/cli/index.js";
 import { CoreEngine } from "../../src/core/engine-core.js";
-import type { WorkflowEngineCallbacks } from "../../src/core/engine.js";
 import { WorkflowExitCodes } from "../../src/core/exit-codes.js";
 import type { CorePlan } from "../../src/core/plan.js";
+import type { WorkflowEngineCallbacks } from "../../src/core/workflow-types.js";
 import { createExtensionRegistry } from "../../src/extensions/registry.js";
 
 vi.mock("../../src/core/engine-core.js", () => {

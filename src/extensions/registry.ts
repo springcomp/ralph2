@@ -68,12 +68,7 @@ export interface ExtensionRegistry {
   circuitBreakerLowering(name: string): CircuitBreakerLowering | undefined;
 }
 
-import {
-  BlueprintRefill,
-  ChainedWorkSource,
-  PrdSource,
-  TriggerWorkSource,
-} from "../config/lowering/worksource.js";
+import { TriggerWorkSource } from "../config/lowering/worksource.js";
 import type { CoreContext, Guard } from "../core/plan.js";
 import { scheduleTaskAction } from "./actions/schedule-task.js";
 import { noProgressCircuitBreaker } from "./circuit-breakers/no-progress.js";
@@ -110,33 +105,7 @@ const builtinCircuitBreakers: readonly CircuitBreakerRegistration[] = [
   repeatedFailureSignatureCircuitBreaker,
 ];
 
-const continuationLowerings: readonly ContinuationLowering[] = [
-  {
-    name: "blueprint",
-    schema: { required: ["source"] },
-    lower: (dto, ctx) => {
-      const continuation = dto as {
-        source?: string;
-        seedPrdFromSource?: boolean;
-        completeWhenSourceExhausted?: boolean;
-      };
-      return continuation.source && continuation.seedPrdFromSource
-        ? new ChainedWorkSource(
-            [
-              ctx.base,
-              new BlueprintRefill(
-                ctx.source,
-                ctx.plan.tasks.prd,
-                continuation.source,
-              ),
-            ],
-            continuation.completeWhenSourceExhausted ? "complete" : "blocked",
-            "Blueprint source exhausted.",
-          )
-        : ctx.base;
-    },
-  },
-];
+const continuationLowerings: readonly ContinuationLowering[] = [];
 
 const triggerLowerings: readonly TriggerLowering[] = [
   {

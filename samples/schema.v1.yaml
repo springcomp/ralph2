@@ -1,0 +1,283 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+title: Ralph workflow configuration
+type: object
+required:
+  - schemaVersion
+  - workspace
+  - maxIterations
+  - tasks
+  - defaults
+  - harnesses
+properties:
+  schemaVersion:
+    const: 1
+  workspace:
+    type: string
+    minLength: 1
+  envFile:
+    type: string
+    minLength: 1
+  environment:
+    type: array
+    items: &a1
+      oneOf:
+        - type: object
+          required:
+            - name
+            - value
+          properties:
+            name:
+              type: string
+              minLength: 1
+            value:
+              type: string
+            secret:
+              type: boolean
+        - type: string
+          pattern: ^[A-Za-z_][A-Za-z0-9_]*=.*$
+  maxIterations:
+    type: number
+    exclusiveMinimum: 0
+  maxRemediationAttempts:
+    type: number
+    minimum: 0
+    multipleOf: 1
+  tasks:
+    type: object
+    required:
+      - prd
+      - progress
+      - prompt
+    properties:
+      format:
+        type: string
+      prd:
+        type: string
+        minLength: 1
+      progress:
+        type: string
+        minLength: 1
+      prompt:
+        type: string
+        minLength: 1
+      completionSignal:
+        type: string
+      metadata:
+        type: object
+  defaults:
+    type: object
+    required:
+      - harness
+    properties:
+      harness:
+        type: string
+        minLength: 1
+      model:
+        type:
+          - string
+          - "null"
+      agent:
+        type:
+          - string
+          - "null"
+      statusFormat:
+        type: string
+  harnesses:
+    type: object
+    minProperties: 1
+    additionalProperties:
+      $ref: "#/$defs/command"
+  preAgent:
+    type: array
+    items:
+      $ref: "#/$defs/command"
+  postAgent:
+    type: array
+    items:
+      $ref: "#/$defs/command"
+  verification:
+    type: object
+    properties:
+      requireTaskChecked:
+        type: boolean
+      retries:
+        type: number
+      prompt:
+        type: string
+  continuation:
+    type: object
+    properties:
+      kind:
+        enum:
+          - generatedGoal
+    allOf:
+      - if:
+          properties:
+            kind:
+              const: generatedGoal
+        then:
+          properties:
+            completeWhen:
+              type: object
+              properties:
+                kind:
+                  type: string
+                  minLength: 1
+                path:
+                  type: string
+                check:
+                  $ref: "#/$defs/command"
+            nextTask:
+              type: string
+              minLength: 1
+            producer:
+              oneOf:
+                - type: string
+                  minLength: 1
+                  enum:
+                    - goalProducer
+                - $ref: "#/$defs/command"
+          required:
+            - producer
+            - completeWhen
+            - nextTask
+  trigger:
+    type: object
+    required:
+      - kind
+    properties:
+      kind:
+        enum:
+          - taskAppears
+      source:
+        type: string
+        minLength: 1
+      pollInterval:
+        type:
+          - string
+          - number
+  circuitBreaker:
+    type: object
+    properties:
+      checks:
+        type: array
+        items:
+          type: object
+          required:
+            - kind
+          properties:
+            kind:
+              enum:
+                - noProgress
+                - repeatedFailureSignature
+            threshold:
+              type: number
+              exclusiveMinimum: 0
+$defs:
+  command:
+    type: object
+    properties:
+      name:
+        type: string
+      executable:
+        type: string
+        minLength: 1
+      arguments:
+        type: array
+        items:
+          type: string
+      conditionalArguments:
+        type: array
+        items:
+          type: object
+          required:
+            - whenSet
+          properties:
+            whenSet:
+              enum:
+                - MODEL
+                - AGENT
+                - TYP
+                - NUM
+                - TASK
+                - TASK_LINE
+                - ROOT
+                - PROMPT
+                - PRD
+                - PROGRESS
+                - ITERATION
+                - WORKSPACE
+            arguments:
+              type: array
+              items:
+                type: string
+      environment:
+        type: array
+        items: *a1
+      envFile:
+        type: string
+        minLength: 1
+      failurePolicy:
+        enum:
+          - stop
+          - continue
+      timeout:
+        type:
+          - string
+          - number
+      successExitCodes:
+        type: array
+        items:
+          type: number
+      output:
+        type: object
+      pty:
+        type: boolean
+      mandatory:
+        type: boolean
+      result:
+        type: object
+        properties:
+          path:
+            type: string
+            minLength: 1
+          required:
+            type: boolean
+      onFailure:
+        type: object
+        required:
+          - action
+          - task
+        properties:
+          action:
+            enum:
+              - scheduleTask
+          task:
+            type: string
+            minLength: 1
+    required:
+      - executable
+  placeholders:
+    enum:
+      - MODEL
+      - AGENT
+      - TYP
+      - NUM
+      - TASK
+      - TASK_LINE
+      - ROOT
+      - PROMPT
+      - PRD
+      - PROGRESS
+      - ITERATION
+      - ITERATION:000
+      - WORKSPACE
+  actions:
+    enum:
+      - scheduleTask
+  predicates:
+    enum:
+      - fileExists
+      - fileMissing
+      - acceptedExitCode
+

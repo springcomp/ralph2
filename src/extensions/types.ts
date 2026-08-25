@@ -108,6 +108,8 @@ export type DtoFragment = Record<string, unknown>;
 /** Fields required in the surface YAML when this lowering's `kind` is selected. */
 export interface ContinuationSchemaFragment {
   required?: string[];
+  /** JSON Schema fragments for properties added by this continuation kind. */
+  properties?: Record<string, DtoFragment>;
   /** Declares that `producer` should be validated as a named-producer-or-command. */
   usesProducer?: boolean;
 }

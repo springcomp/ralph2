@@ -1,4 +1,9 @@
+import {
+  BlueprintRefill,
+  ChainedWorkSource,
+} from "../../config/lowering/worksource.js";
 import type { TemplateRegistration } from "../registry.js";
+import type { ContinuationLowering } from "../types.js";
 import { goalTemplateRegistration } from "./goal.js";
 
 const blueprintYaml = `schemaVersion: 1
@@ -129,7 +134,41 @@ files.set(
   "# Blueprint\n\n- [ ] TASK-001 - Define first task\n",
 );
 
+export const blueprintContinuationLowering: ContinuationLowering = {
+  name: "blueprint",
+  schema: {
+    required: ["source"],
+    properties: {
+      source: { type: "string", minLength: 1 },
+      seedPrdFromSource: { type: "boolean" },
+      completeWhenSourceExhausted: { type: "boolean" },
+    },
+  },
+  lower: (dto, ctx) => {
+    const continuation = dto as {
+      source?: string;
+      seedPrdFromSource?: boolean;
+      completeWhenSourceExhausted?: boolean;
+    };
+    return continuation.source && continuation.seedPrdFromSource
+      ? new ChainedWorkSource(
+          [
+            ctx.base,
+            new BlueprintRefill(
+              ctx.source,
+              ctx.plan.tasks.prd,
+              continuation.source,
+            ),
+          ],
+          continuation.completeWhenSourceExhausted ? "complete" : "blocked",
+          "Blueprint source exhausted.",
+        )
+      : ctx.base;
+  },
+};
+
 export const blueprintTemplateRegistration: TemplateRegistration = {
   name: "blueprint",
   files,
+  continuationLowerings: [blueprintContinuationLowering],
 };

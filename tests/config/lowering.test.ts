@@ -239,6 +239,39 @@ describe("work-source lowering", () => {
     expect(lowered).toBe(custom);
   });
 
+  it("passes a custom continuation kind's own properties through compileCore untouched", () => {
+    const custom = { pull: vi.fn(async () => task) };
+    let received: unknown;
+    const registry = createExtensionRegistry({
+      continuationLowerings: [
+        {
+          name: "custom",
+          lower: (dto) => {
+            received = dto;
+            return custom;
+          },
+        },
+      ],
+    });
+    const doc = {
+      schemaVersion: 1 as const,
+      workspace: ".",
+      maxIterations: 1,
+      tasks: { prd: "PRD.md", progress: "progress.txt", prompt: "prompt.md" },
+      defaults: { harness: "harness" },
+      harnesses: { harness: { executable: "node" } },
+      continuation: { kind: "custom", pollUrl: "https://example.test/status" },
+    };
+
+    const core = compileCore(doc, "C:\\workspace", source(), {}, registry);
+
+    expect(core.source).toBe(custom);
+    expect(received).toMatchObject({
+      kind: "custom",
+      pollUrl: "https://example.test/status",
+    });
+  });
+
   it("pulls PRD tasks, refills blueprints, chains sources, and handles generated goals", async () => {
     const first = source();
     expect(await new PrdSource(first, "prd").pull()).toBe(task);

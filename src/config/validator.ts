@@ -176,24 +176,26 @@ function semanticDiagnostics(
 
   const cont = document.continuation;
   if (cont && typeof cont === "object") {
-    const lowering = string(cont.kind)
-      ? extensions.continuationLowering(cont.kind)
+    const contDto = cont as Record<string, unknown>;
+    const lowering = string(contDto.kind)
+      ? extensions.continuationLowering(contDto.kind)
       : undefined;
-    if (lowering?.schema?.usesProducer && typeof cont.producer === "string") {
-      const producer = cont.producer.trim();
-      if (producer && !extensions.producer(producer))
+    const producer = contDto.producer;
+    if (lowering?.schema?.usesProducer && typeof producer === "string") {
+      const normalized = producer.trim();
+      if (normalized && !extensions.producer(normalized))
         d.push({
           path: "continuation.producer",
-          message: `unknown producer '${cont.producer}'`,
+          message: `unknown producer '${producer}'`,
         });
-    } else if (lowering?.schema?.usesProducer && cont.producer) {
+    } else if (lowering?.schema?.usesProducer && producer) {
       collectCommandPlaceholders(
         "continuation.producer",
-        cont.producer as CommandDto,
+        producer as CommandDto,
       );
     }
-    if (string(cont.nextTask))
-      placeholders("continuation.nextTask", [cont.nextTask], d);
+    if (string(contDto.nextTask))
+      placeholders("continuation.nextTask", [contDto.nextTask], d);
   }
 
   if (defs && typeof defs === "object" && string(defs.statusFormat))

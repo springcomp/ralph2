@@ -1,4 +1,3 @@
-import type { WorkflowEvent, WorkflowRunResult } from "./engine.js";
 import type {
   CoreContext,
   Outcome,
@@ -6,6 +5,7 @@ import type {
   Step,
   StepFailure,
 } from "./plan.js";
+import type { WorkflowEvent, WorkflowRunResult } from "./workflow-types.js";
 
 export interface PipelineContext extends CoreContext {
   readonly emit?: (event: WorkflowEvent) => Promise<void>;

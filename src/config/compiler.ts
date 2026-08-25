@@ -89,6 +89,8 @@ export interface WorkflowPlan {
     prompt?: string;
   };
   continuation?: {
+    /** Custom continuation kinds carry their own extra properties through untouched. */
+    [key: string]: unknown;
     kind: string;
     source?: string;
     seedPrdFromSource: boolean;
@@ -218,37 +220,52 @@ export function compileWorkflow(
       stage(name, dto, workspace, options.pty),
     ]),
   );
-  const continuation = document.continuation
+  const continuationDto =
+    document.continuation && typeof document.continuation === "object"
+      ? (document.continuation as Record<string, unknown>)
+      : undefined;
+  const continuation = continuationDto
     ? {
-        kind: text(document.continuation.kind),
-        source: path(workspace, document.continuation.source),
-        seedPrdFromSource: document.continuation.seedPrdFromSource === true,
+        ...continuationDto,
+        kind: text(continuationDto.kind),
+        source: path(workspace, continuationDto.source),
+        seedPrdFromSource: continuationDto.seedPrdFromSource === true,
         completeWhenSourceExhausted:
-          document.continuation.completeWhenSourceExhausted === true,
-        nextTask: text(document.continuation.nextTask) || undefined,
+          continuationDto.completeWhenSourceExhausted === true,
+        nextTask: text(continuationDto.nextTask) || undefined,
         producer: (() => {
           const dto = resolveProducerDto(
-            document.continuation.producer,
+            continuationDto.producer as
+              | string
+              | import("./schema-v1.js").CommandDto
+              | null
+              | undefined,
             extensions,
           );
           return dto
             ? stage("producer", dto, workspace, options.pty)
             : undefined;
         })(),
-        completeWhen: document.continuation.completeWhen
-          ? {
-              kind: text(document.continuation.completeWhen.kind),
-              path: path(workspace, document.continuation.completeWhen.path),
-              check: document.continuation.completeWhen.check
-                ? stage(
-                    "completion-check",
-                    document.continuation.completeWhen.check,
-                    workspace,
-                    options.pty,
-                  )
-                : undefined,
-            }
-          : undefined,
+        completeWhen:
+          continuationDto.completeWhen &&
+          typeof continuationDto.completeWhen === "object"
+            ? (() => {
+                const completeWhenDto =
+                  continuationDto.completeWhen as Record<string, unknown>;
+                return {
+                  kind: text(completeWhenDto.kind),
+                  path: path(workspace, completeWhenDto.path),
+                  check: completeWhenDto.check
+                    ? stage(
+                        "completion-check",
+                        completeWhenDto.check as CommandDto,
+                        workspace,
+                        options.pty,
+                      )
+                    : undefined,
+                };
+              })()
+            : undefined,
       }
     : undefined;
   const prdPath = path(workspace, tasks.prd) ?? "";

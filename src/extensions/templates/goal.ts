@@ -74,6 +74,17 @@ export const generatedGoalContinuationLowering: ContinuationLowering = {
   schema: {
     required: ["producer", "completeWhen", "nextTask"],
     usesProducer: true,
+    properties: {
+      completeWhen: {
+        type: "object",
+        properties: {
+          kind: { type: "string", minLength: 1 },
+          path: { type: "string" },
+          check: { $ref: "#/$defs/command" },
+        },
+      },
+      nextTask: { type: "string", minLength: 1 },
+    },
   },
   lower: (dto, ctx) => {
     if (

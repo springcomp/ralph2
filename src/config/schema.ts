@@ -74,6 +74,20 @@ export function workflowSchema(registry: ExtensionRegistry): JsonSchema {
     required: ["executable"],
   };
 
+  const producerSchema: JsonSchema =
+    registry.producers.length > 0
+      ? {
+          oneOf: [
+            {
+              type: "string",
+              minLength: 1,
+              enum: registry.producers.map((p) => p.name),
+            },
+            { $ref: "#/$defs/command" },
+          ],
+        }
+      : { $ref: "#/$defs/command" };
+
   return {
     $schema: "https://json-schema.org/draft/2020-12/schema",
     title: "Ralph workflow configuration",
@@ -142,42 +156,33 @@ export function workflowSchema(registry: ExtensionRegistry): JsonSchema {
               (lowering) => lowering.name,
             ),
           },
-          source: { type: "string", minLength: 1 },
-          seedPrdFromSource: { type: "boolean" },
-          completeWhenSourceExhausted: { type: "boolean" },
-          producer:
-            registry.producers.length > 0
-              ? {
-                  oneOf: [
-                    {
-                      type: "string",
-                      minLength: 1,
-                      enum: registry.producers.map((p) => p.name),
-                    },
-                    { $ref: "#/$defs/command" },
-                  ],
-                }
-              : { $ref: "#/$defs/command" },
-          completeWhen: {
-            type: "object",
-            properties: {
-              kind: { type: "string", minLength: 1 },
-              path: { type: "string" },
-              check: { $ref: "#/$defs/command" },
-            },
-          },
-          nextTask: { type: "string", minLength: 1 },
         },
         allOf: registry.continuationLowerings
-          .filter((lowering) => lowering.schema?.required?.length)
           .map((lowering) => {
+            const properties: Record<string, JsonSchema> = {
+              ...(lowering.schema?.properties ?? {}),
+              ...(lowering.schema?.usesProducer
+                ? { producer: producerSchema }
+                : {}),
+            };
+            if (
+              !Object.keys(properties).length &&
+              !lowering.schema?.required?.length
+            )
+              return null;
             const entry: JsonSchema = {
               if: { properties: { kind: { const: lowering.name } } },
             };
+            const thenSchema: JsonSchema = {};
+            if (Object.keys(properties).length)
+              thenSchema.properties = properties;
+            if (lowering.schema?.required?.length)
+              thenSchema.required = lowering.schema?.required;
             // biome-ignore lint/suspicious/noThenProperty: JSON Schema if/then keyword, not a thenable
-            entry.then = { required: lowering.schema?.required };
+            entry.then = thenSchema;
             return entry;
-          }),
+          })
+          .filter((entry): entry is JsonSchema => entry !== null),
       },
       trigger: {
         type: "object",

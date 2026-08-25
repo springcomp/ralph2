@@ -60,13 +60,8 @@ export interface VerificationDto {
   prompt?: unknown;
 }
 export interface ContinuationDto {
+  [key: string]: unknown;
   kind?: unknown;
-  source?: unknown;
-  seedPrdFromSource?: unknown;
-  completeWhenSourceExhausted?: unknown;
-  producer?: string | CommandDto | null;
-  completeWhen?: CompletionPredicateDto | null;
-  nextTask?: unknown;
 }
 export interface TriggerDto {
   kind?: unknown;
