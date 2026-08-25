@@ -5,19 +5,16 @@ import {
   type ExtensionRegistry,
   defaultExtensionRegistry,
 } from "../extensions/registry.js";
+import {
+  type PlaceholderContext,
+  PlaceholderExpander,
+} from "../placeholders/placeholders.js";
 import { evaluateCircuitBreaker } from "./circuit-breaker.js";
 import { loadEnvFile } from "./env-file.js";
 import { WorkflowExitCodes } from "./exit-codes.js";
 import { WorkspaceLock } from "./locks.js";
-import {
-  type MarkdownTask,
-  MarkdownTaskSource,
-} from "./markdown-task-source.js";
-import {
-  type PlaceholderContext,
-  PlaceholderExpander,
-} from "./placeholders.js";
 import type { ProcessResult, ProcessRunner } from "./process-runner.js";
+import type { Task, TaskSource } from "./task.js";
 
 export type WorkflowStatus =
   | "complete"
@@ -62,7 +59,7 @@ const exitCode = (status: WorkflowStatus): number =>
 export class WorkflowEngine {
   constructor(
     private readonly runner: ProcessRunner,
-    private readonly source = new MarkdownTaskSource(),
+    private readonly source: TaskSource,
     private readonly expander = new PlaceholderExpander(),
     private readonly callbacks: WorkflowEngineCallbacks = {},
     private readonly extensions: ExtensionRegistry = defaultExtensionRegistry,
@@ -95,7 +92,7 @@ export class WorkflowEngine {
       for (let iteration = 1; iteration <= max; iteration++) {
         if (options.signal?.aborted)
           return this.result("canceled", "Canceled.", iteration - 1, events);
-        let task: MarkdownTask | null;
+        let task: Task | null;
         try {
           task = await this.source.getFirstUncheckedTask(plan.tasks.prd);
         } catch (error) {
@@ -135,7 +132,12 @@ export class WorkflowEngine {
           continue;
         }
         const original = task;
-        const originalValues = await this.values(plan, original, options, iteration);
+        const originalValues = await this.values(
+          plan,
+          original,
+          options,
+          iteration,
+        );
         const values = originalValues;
         let remediationScheduled = false;
         await emit({
@@ -337,7 +339,7 @@ export class WorkflowEngine {
   }
   private async values(
     plan: WorkflowPlan,
-    task: MarkdownTask,
+    task: Task,
     options: WorkflowOptions,
     iteration: number,
   ): Promise<PlaceholderContext> {
@@ -362,10 +364,7 @@ export class WorkflowEngine {
       workspace: plan.workspace,
     };
   }
-  private async stillUnchecked(
-    path: string,
-    target: MarkdownTask,
-  ): Promise<boolean> {
+  private async stillUnchecked(path: string, target: Task): Promise<boolean> {
     return this.source.isTaskUnchecked(path, target);
   }
   private async runStage(
@@ -494,7 +493,7 @@ export class WorkflowEngine {
     plan: WorkflowPlan,
     stage: StagePlan,
     values: PlaceholderContext,
-    task: MarkdownTask,
+    task: Task,
     result: ProcessResult,
     iteration: number,
     emit: (e: WorkflowEvent) => Promise<void>,

@@ -1,6 +1,6 @@
 import { stringify } from "yaml";
-import { PlaceholderRegistry } from "../core/placeholders.js";
 import type { ExtensionRegistry } from "../extensions/registry.js";
+import { PlaceholderRegistry } from "../placeholders/placeholders.js";
 
 export interface JsonSchema {
   [key: string]: unknown;

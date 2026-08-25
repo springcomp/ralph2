@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { compileWorkflow } from "../../src/config/compiler.js";
 import { parseWorkflowYaml } from "../../src/config/validator.js";
 import { WorkflowEngine } from "../../src/core/engine.js";
+import { MarkdownTaskSource } from "../../src/task-source/markdown-task-source.js";
 import type {
   ProcessRequest,
   ProcessResult,
@@ -68,14 +69,19 @@ describe("blueprint template integration", () => {
       agentic,
     );
     const runner = new FakeCodingAgent(join(agentic, "PRD.md"));
-    const result = await new WorkflowEngine(runner).run(plan);
+    const result = await new WorkflowEngine(
+      runner,
+      new MarkdownTaskSource(),
+    ).run(plan);
 
     expect(result.status).toBe("complete");
     expect(runner.requests).toHaveLength(2);
-    expect(result.events.filter(({ type }) => type === "continuation.seeded"))
-      .toHaveLength(2);
-    expect((await readFile(join(agentic, "PRD.md"), "utf8")).match(/- \[x\]/g))
-      .toHaveLength(2);
+    expect(
+      result.events.filter(({ type }) => type === "continuation.seeded"),
+    ).toHaveLength(2);
+    expect(
+      (await readFile(join(agentic, "PRD.md"), "utf8")).match(/- \[x\]/g),
+    ).toHaveLength(2);
     expect(
       (await readFile(join(agentic, "BLUEPRINT.md"), "utf8")).match(/- \[x\]/g),
     ).toHaveLength(2);

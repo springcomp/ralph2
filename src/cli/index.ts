@@ -12,6 +12,7 @@ import {
 import { WorkflowEngine } from "../core/engine.js";
 import { WorkflowExitCodes } from "../core/exit-codes.js";
 import { RealProcessRunner } from "../core/process-runner.js";
+import { MarkdownTaskSource } from "../task-source/markdown-task-source.js";
 import {
   type ActionRegistration,
   type ExtensionProperty,
@@ -23,7 +24,6 @@ import {
   type TriggerRegistration,
   defaultExtensionRegistry,
 } from "../extensions/registry.js";
-import { getTemplate, templates } from "../templates/template-registry.js";
 
 export {
   createExtensionRegistry,
@@ -96,7 +96,7 @@ export function createProgram(
         const plan = await readConfig(options.config, options, extensions);
         const engine = new WorkflowEngine(
           new RealProcessRunner(),
-          undefined,
+          new MarkdownTaskSource(),
           undefined,
           {
             onStatus: options.plain
@@ -176,17 +176,12 @@ export function createProgram(
         force?: boolean;
       }) => {
         const registered = extensions.template(options.template);
-        const legacyTemplate = !registered
-          ? getTemplate(options.template)
-          : undefined;
-        if (!registered && !legacyTemplate) {
+        if (!registered) {
           process.exitCode = WorkflowExitCodes.InvalidConfiguration;
           console.error("Unknown template.");
           return;
         }
-        const entries: Iterable<[string, string]> = registered
-          ? registered.files
-          : Object.entries(legacyTemplate ?? {});
+        const entries: Iterable<[string, string]> = registered.files;
         const root = resolve(options.workingDirectory);
         const target = resolve(root, ".agentic");
         try {
@@ -233,15 +228,7 @@ export function createProgram(
   };
 
   addShowCommand("templates", () => {
-    const registeredNames = new Set(
-      extensions.templates.map((t) => t.name.toLowerCase()),
-    );
-    const legacyNames = Object.keys(templates).filter(
-      (n) => !registeredNames.has(n.toLowerCase()),
-    );
-    console.log(
-      [...extensions.templates.map((t) => t.name), ...legacyNames].join("\n"),
-    );
+    console.log(extensions.templates.map((t) => t.name).join("\n"));
   });
   addShowCommand(
     "variables",

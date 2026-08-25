@@ -10,6 +10,7 @@ import {
   evaluateCircuitBreaker,
 } from "../../src/core/circuit-breaker.js";
 import { WorkflowEngine, type WorkflowEvent } from "../../src/core/engine.js";
+import { MarkdownTaskSource } from "../../src/task-source/markdown-task-source.js";
 import { WorkflowExitCodes } from "../../src/core/exit-codes.js";
 import { FakeProcessRunner } from "../../src/core/fake-process-runner.js";
 import type {
@@ -195,9 +196,10 @@ describe("WorkflowEngine circuit breaker", () => {
 
   it("does nothing when circuitBreaker is not configured (regression)", async () => {
     await writeFile(prdPath, "- [x] TASK-001 - Work\n", "utf8");
-    const result = await new WorkflowEngine(new FakeProcessRunner()).run(
-      createPlan(),
-    );
+    const result = await new WorkflowEngine(
+      new FakeProcessRunner(),
+      new MarkdownTaskSource(),
+    ).run(createPlan());
     expect(result.status).toBe("complete");
   });
 
@@ -238,7 +240,7 @@ describe("WorkflowEngine circuit breaker", () => {
     const events: WorkflowEvent[] = [];
     const result = await new WorkflowEngine(
       runner,
-      undefined,
+      new MarkdownTaskSource(),
       undefined,
       { onEvent: (e) => void events.push(e) },
       registry,
@@ -308,7 +310,7 @@ describe("WorkflowEngine circuit breaker", () => {
     };
     const result = await new WorkflowEngine(
       runner,
-      undefined,
+      new MarkdownTaskSource(),
       undefined,
       {},
       registry,

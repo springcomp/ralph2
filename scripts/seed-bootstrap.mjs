@@ -10,7 +10,16 @@ await rm(bootstrap, { recursive: true, force: true });
 await mkdir(bootstrap, { recursive: true });
 await cp(dist, bootstrap, { recursive: true });
 
-for (const directory of ["cli", "config", "core", "templates"]) {
+const directories = [
+  "cli",
+  "config",
+  "core",
+  "extensions",
+  "task-source",
+  "placeholders",
+];
+
+for (const directory of directories) {
   await rm(resolve(bootstrap, directory), {
     recursive: true,
     force: false,
@@ -19,7 +28,7 @@ for (const directory of ["cli", "config", "core", "templates"]) {
 }
 
 // Re-stage runtime JavaScript and declarations, excluding Vitest suites.
-for (const directory of ["cli", "config", "core", "templates"]) {
+for (const directory of directories) {
   await cp(resolve(dist, directory), resolve(bootstrap, directory), {
     recursive: true,
     filter: (source) => !source.includes(".test."),

@@ -1,24 +1,8 @@
-import {
-  access,
-  mkdir,
-  readFile,
-  rename,
-  rm,
-  writeFile,
-} from "node:fs/promises";
-import { dirname, resolve } from "node:path";
-import { StateLock } from "./locks.js";
-
-export interface MarkdownTask {
-  readonly typ: string;
-  readonly num: string;
-  readonly id: string;
-  readonly description: string;
-  readonly rawLine: string;
-  readonly model?: string;
-  readonly agent?: string;
-  readonly lineIndex: number;
-}
+import { access, readFile } from "node:fs/promises";
+import { resolve } from "node:path";
+import { atomicWrite } from "../core/atomic-file.js";
+import { StateLock } from "../core/locks.js";
+import type { Task, TaskSource } from "../core/task.js";
 
 export class MarkdownTaskError extends Error {
   constructor(message: string) {
@@ -28,7 +12,7 @@ export class MarkdownTaskError extends Error {
 }
 
 interface ParsedLine {
-  readonly task: MarkdownTask;
+  readonly task: Task;
   readonly unchecked: boolean;
 }
 interface Line {
@@ -41,10 +25,7 @@ const taskPattern =
 const metadataPattern = /\((?<key>model|agent):\s*`?(?<value>[^`)]+)`?\)/gi;
 
 /** Parse one Markdown task line. Non-task Markdown returns null. */
-export function parseTaskLine(
-  text: string,
-  lineIndex = 0,
-): MarkdownTask | null {
+export function parseTaskLine(text: string, lineIndex = 0): Task | null {
   const match = taskPattern.exec(text);
   if (!match?.groups) return null;
   const taskText = match.groups.task.trim();
@@ -122,20 +103,6 @@ async function exists(path: string): Promise<boolean> {
   }
 }
 
-export async function atomicWrite(
-  path: string,
-  content: string,
-): Promise<void> {
-  await mkdir(dirname(resolve(path)), { recursive: true });
-  const temporary = `${path}.${crypto.randomUUID()}.tmp`;
-  try {
-    await writeFile(temporary, content, "utf8");
-    await rename(temporary, path);
-  } finally {
-    await rm(temporary, { force: true });
-  }
-}
-
 async function update(
   path: string,
   operation: (lines: Line[]) => boolean,
@@ -152,10 +119,10 @@ async function update(
   });
 }
 
-export class MarkdownTaskSource {
+export class MarkdownTaskSource implements TaskSource {
   async remediationDepth(
     prdPath: string,
-    target: MarkdownTask,
+    target: Task,
   ): Promise<{ depth: number; rootId: string }> {
     const parsed = tasks(parseDocument(await readFile(prdPath, "utf8")).lines);
     const byId = new Map(
@@ -187,10 +154,7 @@ export class MarkdownTaskSource {
     }
   }
 
-  async isTaskUnchecked(
-    prdPath: string,
-    target: MarkdownTask,
-  ): Promise<boolean> {
+  async isTaskUnchecked(prdPath: string, target: Task): Promise<boolean> {
     const parsed = tasks(parseDocument(await readFile(prdPath, "utf8")).lines);
     ensureUniqueUnchecked(parsed);
     const candidates = parsed.filter(
@@ -207,13 +171,13 @@ export class MarkdownTaskSource {
     throw new MarkdownTaskError(`Task '${target.id}' no longer exists.`);
   }
 
-  async getFirstUncheckedTask(prdPath: string): Promise<MarkdownTask | null> {
+  async getFirstUncheckedTask(prdPath: string): Promise<Task | null> {
     const parsed = tasks(parseDocument(await readFile(prdPath, "utf8")).lines);
     ensureUniqueUnchecked(parsed);
     return parsed.find(({ unchecked }) => unchecked)?.task ?? null;
   }
 
-  async checkTask(prdPath: string, task: MarkdownTask): Promise<void> {
+  async checkTask(prdPath: string, task: Task): Promise<void> {
     await update(prdPath, (lines) => {
       const index = lines.findIndex((line) => line.text === task.rawLine);
       if (index < 0)

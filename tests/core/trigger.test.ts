@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { StagePlan, WorkflowPlan } from "../../src/config/compiler.js";
 import { WorkflowEngine, type WorkflowEvent } from "../../src/core/engine.js";
+import { MarkdownTaskSource } from "../../src/task-source/markdown-task-source.js";
 import { WorkflowExitCodes } from "../../src/core/exit-codes.js";
 import { FakeProcessRunner } from "../../src/core/fake-process-runner.js";
 import type {
@@ -70,9 +71,10 @@ describe("WorkflowEngine triggers", () => {
 
   it("completes normally when work is exhausted and no trigger is configured", async () => {
     await writeFile(prdPath, "", "utf8");
-    const result = await new WorkflowEngine(new FakeProcessRunner()).run(
-      createPlan(),
-    );
+    const result = await new WorkflowEngine(
+      new FakeProcessRunner(),
+      new MarkdownTaskSource(),
+    ).run(createPlan());
     expect(result.status).toBe("complete");
     expect(result.exitCode).toBe(WorkflowExitCodes.Complete);
   });
@@ -105,7 +107,7 @@ describe("WorkflowEngine triggers", () => {
     };
     const engine = new WorkflowEngine(
       runner,
-      undefined,
+      new MarkdownTaskSource(),
       undefined,
       { onEvent: (e) => void events.push(e) },
       registry,
@@ -140,7 +142,7 @@ describe("WorkflowEngine triggers", () => {
     const registry = createExtensionRegistry({ triggers: [alwaysFire] });
     const engine = new WorkflowEngine(
       new FakeProcessRunner(),
-      undefined,
+      new MarkdownTaskSource(),
       undefined,
       {},
       registry,
@@ -193,7 +195,7 @@ describe("WorkflowEngine triggers", () => {
     ]);
     const result = await new WorkflowEngine(
       runner,
-      undefined,
+      new MarkdownTaskSource(),
       undefined,
       {},
       registry,
@@ -218,7 +220,7 @@ describe("WorkflowEngine triggers", () => {
     const controller = new AbortController();
     const engine = new WorkflowEngine(
       runner,
-      undefined,
+      new MarkdownTaskSource(),
       undefined,
       {},
       registry,

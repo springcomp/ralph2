@@ -2,11 +2,11 @@ import Ajv2020Module, { type ErrorObject } from "ajv/dist/2020.js";
 const Ajv2020 = Ajv2020Module as unknown as typeof Ajv2020Module.default;
 import { parse } from "yaml";
 import { parseEnvAssignment } from "../core/env-file.js";
-import { PlaceholderRegistry } from "../core/placeholders.js";
 import {
   type ExtensionRegistry,
   defaultExtensionRegistry,
 } from "../extensions/registry.js";
+import { PlaceholderRegistry } from "../placeholders/placeholders.js";
 import type { CommandDto, V1WorkflowDocument } from "./schema-v1.js";
 import { workflowSchema } from "./schema.js";
 

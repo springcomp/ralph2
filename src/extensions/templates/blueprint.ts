@@ -60,7 +60,9 @@ continuation:
 const files = new Map(goalTemplateRegistration.files);
 files.set("ralph.yaml", blueprintYaml);
 files.set("PRD.md", "# Product Requirements\n\n");
-files.set("ralph.prompt.md", `
+files.set(
+  "ralph.prompt.md",
+  `
 ---
 argument-hint: [prd={PRD}] [progress={PROGRESS}]
 ---
@@ -120,7 +122,8 @@ Where:
 - Check the task when done with (\`- [x]\`).
 - NEVER consider later tasks.
 - NEVER delegate later tasks.
-`);
+`,
+);
 files.set(
   "BLUEPRINT.md",
   "# Blueprint\n\n- [ ] TASK-001 - Define first task\n",

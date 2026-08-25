@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { StagePlan, WorkflowPlan } from "../../src/config/compiler.js";
 import { WorkflowEngine, type WorkflowEvent } from "../../src/core/engine.js";
+import { MarkdownTaskSource } from "../../src/task-source/markdown-task-source.js";
 import { WorkflowExitCodes } from "../../src/core/exit-codes.js";
 import { FakeProcessRunner } from "../../src/core/fake-process-runner.js";
 import { WorkspaceLock } from "../../src/core/locks.js";
@@ -96,14 +97,19 @@ describe("WorkflowEngine", () => {
       },
     };
 
-    const engine = new WorkflowEngine(customRunner, undefined, undefined, {
-      onStatus: (s) => {
-        statuses.push(s);
+    const engine = new WorkflowEngine(
+      customRunner,
+      new MarkdownTaskSource(),
+      undefined,
+      {
+        onStatus: (s) => {
+          statuses.push(s);
+        },
+        onEvent: (e) => {
+          events.push(e);
+        },
       },
-      onEvent: (e) => {
-        events.push(e);
-      },
-    });
+    );
 
     const result = await engine.run(createPlan());
 
@@ -139,12 +145,17 @@ describe("WorkflowEngine", () => {
       { exitCode: 0, signal: null, timedOut: false, cancelled: false },
       { exitCode: 1, signal: null, timedOut: false, cancelled: false },
     ]);
-    const result = await new WorkflowEngine(runner).run(plan);
+    const result = await new WorkflowEngine(
+      runner,
+      new MarkdownTaskSource(),
+    ).run(plan);
 
     expect(result.status).toBe("blocked");
     expect(result.message).toContain("Maximum remediation attempts (2)");
     expect(result.message).toContain("TASK-001");
-    expect((await readFile(prdPath, "utf8")).match(/^- \[ \]/gm)).toHaveLength(1);
+    expect((await readFile(prdPath, "utf8")).match(/^- \[ \]/gm)).toHaveLength(
+      1,
+    );
   });
 
   it("merges global and stage environment with stage inline values winning", async () => {
@@ -165,7 +176,7 @@ describe("WorkflowEngine", () => {
         return { exitCode: 0, signal: null, timedOut: false, cancelled: false };
       },
     };
-    const engine = new WorkflowEngine(runner);
+    const engine = new WorkflowEngine(runner, new MarkdownTaskSource());
     await engine.run(
       createPlan({
         envFilePath: envPath,
@@ -191,7 +202,10 @@ describe("WorkflowEngine", () => {
   it("fails cleanly when an env file is missing", async () => {
     await writeFile(prdPath, "- [ ] TASK-001 - Implement feature\n", "utf8");
     const runner = new FakeProcessRunner();
-    const result = await new WorkflowEngine(runner).run(
+    const result = await new WorkflowEngine(
+      runner,
+      new MarkdownTaskSource(),
+    ).run(
       createPlan({
         harnesses: {
           pi: createStagePlan({ envFilePath: join(tmpDir, "missing.env") }),
@@ -218,7 +232,7 @@ describe("WorkflowEngine", () => {
       },
     };
 
-    const engine = new WorkflowEngine(customRunner);
+    const engine = new WorkflowEngine(customRunner, new MarkdownTaskSource());
     const plan = createPlan({
       harnesses: {
         pi: createStagePlan({
@@ -255,7 +269,7 @@ describe("WorkflowEngine", () => {
       },
     };
 
-    const engine = new WorkflowEngine(customRunner);
+    const engine = new WorkflowEngine(customRunner, new MarkdownTaskSource());
     const result = await engine.run(createPlan(), {
       model: "cli-model",
       agent: "cli-agent",
@@ -276,11 +290,16 @@ describe("WorkflowEngine", () => {
     };
 
     const statuses: string[] = [];
-    const engine = new WorkflowEngine(customRunner, undefined, undefined, {
-      onStatus: (s) => {
-        statuses.push(s);
+    const engine = new WorkflowEngine(
+      customRunner,
+      new MarkdownTaskSource(),
+      undefined,
+      {
+        onStatus: (s) => {
+          statuses.push(s);
+        },
       },
-    });
+    );
     const plan = createPlan({ model: null });
     await engine.run(plan, { model: null });
 
@@ -293,7 +312,10 @@ describe("WorkflowEngine", () => {
     await lock.acquire();
 
     try {
-      const engine = new WorkflowEngine(new FakeProcessRunner());
+      const engine = new WorkflowEngine(
+        new FakeProcessRunner(),
+        new MarkdownTaskSource(),
+      );
       const result = await engine.run(createPlan());
 
       expect(result.status).toBe("blocked");
@@ -305,7 +327,10 @@ describe("WorkflowEngine", () => {
 
   it("fails with blocked status when unconfigured harness is requested", async () => {
     await writeFile(prdPath, "- [ ] TASK-001 - Test task\n", "utf8");
-    const engine = new WorkflowEngine(new FakeProcessRunner());
+    const engine = new WorkflowEngine(
+      new FakeProcessRunner(),
+      new MarkdownTaskSource(),
+    );
     const result = await engine.run(createPlan(), { harness: "nonexistent" });
 
     expect(result.status).toBe("blocked");
@@ -334,7 +359,7 @@ describe("WorkflowEngine", () => {
       ],
     });
 
-    const engine = new WorkflowEngine(runner);
+    const engine = new WorkflowEngine(runner, new MarkdownTaskSource());
     const result = await engine.run(plan);
 
     // Loop must NOT stop with processFailure — it continues until limit.
@@ -360,7 +385,7 @@ describe("WorkflowEngine", () => {
       ],
     });
 
-    const engine = new WorkflowEngine(runner);
+    const engine = new WorkflowEngine(runner, new MarkdownTaskSource());
     const result = await engine.run(plan);
 
     expect(result.status).toBe("processFailure");
@@ -392,7 +417,7 @@ describe("WorkflowEngine", () => {
       ],
     });
 
-    const engine = new WorkflowEngine(customRunner);
+    const engine = new WorkflowEngine(customRunner, new MarkdownTaskSource());
     const result = await engine.run(plan);
 
     expect(result.status).toBe("complete");
@@ -404,7 +429,7 @@ describe("WorkflowEngine", () => {
       { exitCode: 127, signal: null, timedOut: false, cancelled: false },
     ]);
 
-    const engine = new WorkflowEngine(runner);
+    const engine = new WorkflowEngine(runner, new MarkdownTaskSource());
     const result = await engine.run(createPlan());
 
     expect(result.status).toBe("processFailure");
@@ -439,7 +464,7 @@ describe("WorkflowEngine", () => {
       ],
     });
 
-    const engine = new WorkflowEngine(customRunner);
+    const engine = new WorkflowEngine(customRunner, new MarkdownTaskSource());
     const result = await engine.run(plan);
 
     expect(result.status).toBe("processFailure");
@@ -496,7 +521,7 @@ describe("WorkflowEngine", () => {
       ],
     });
 
-    const engine = new WorkflowEngine(customRunner);
+    const engine = new WorkflowEngine(customRunner, new MarkdownTaskSource());
     const result = await engine.run(plan);
 
     expect(result.status).toBe("complete");
@@ -518,7 +543,10 @@ describe("WorkflowEngine", () => {
         return { exitCode: 0, signal: null, timedOut: false, cancelled: false };
       },
     };
-    const result = await new WorkflowEngine(runner).run(
+    const result = await new WorkflowEngine(
+      runner,
+      new MarkdownTaskSource(),
+    ).run(
       createPlan({
         postAgent: [
           createStagePlan({ executable: "check", arguments: ["{TASK}"] }),
@@ -545,7 +573,10 @@ describe("WorkflowEngine", () => {
           : { exitCode: 0, signal: null, timedOut: false, cancelled: false };
       },
     };
-    const result = await new WorkflowEngine(runner).run(
+    const result = await new WorkflowEngine(
+      runner,
+      new MarkdownTaskSource(),
+    ).run(
       createPlan({
         maxIterations: 1,
         postAgent: [
@@ -569,7 +600,10 @@ describe("WorkflowEngine", () => {
         return { exitCode: 0, signal: null, timedOut: false, cancelled: false };
       },
     };
-    const result = await new WorkflowEngine(runner).run(
+    const result = await new WorkflowEngine(
+      runner,
+      new MarkdownTaskSource(),
+    ).run(
       createPlan({
         postAgent: [
           createStagePlan({
@@ -607,7 +641,7 @@ describe("WorkflowEngine", () => {
       },
     });
 
-    const engine = new WorkflowEngine(customRunner);
+    const engine = new WorkflowEngine(customRunner, new MarkdownTaskSource());
     const result = await engine.run(plan);
 
     expect(result.status).toBe("complete");
@@ -626,7 +660,7 @@ describe("WorkflowEngine", () => {
       },
     });
 
-    const engine = new WorkflowEngine(runner);
+    const engine = new WorkflowEngine(runner, new MarkdownTaskSource());
     const result = await engine.run(plan);
 
     expect(result.status).toBe("blocked");
@@ -661,7 +695,7 @@ describe("WorkflowEngine", () => {
       },
     });
 
-    const engine = new WorkflowEngine(customRunner);
+    const engine = new WorkflowEngine(customRunner, new MarkdownTaskSource());
     const result = await engine.run(plan);
 
     expect(result.status).toBe("processFailure");
@@ -698,7 +732,7 @@ describe("WorkflowEngine", () => {
       },
     });
 
-    const engine = new WorkflowEngine(customRunner);
+    const engine = new WorkflowEngine(customRunner, new MarkdownTaskSource());
     const result = await engine.run(plan);
 
     expect(result.status).toBe("complete");
@@ -720,7 +754,10 @@ describe("WorkflowEngine", () => {
       },
     });
 
-    const engine = new WorkflowEngine(new FakeProcessRunner());
+    const engine = new WorkflowEngine(
+      new FakeProcessRunner(),
+      new MarkdownTaskSource(),
+    );
     const result = await engine.run(plan);
 
     expect(result.status).toBe("blocked");
@@ -772,7 +809,7 @@ describe("WorkflowEngine", () => {
       },
     });
 
-    const engine = new WorkflowEngine(customRunner);
+    const engine = new WorkflowEngine(customRunner, new MarkdownTaskSource());
     const result = await engine.run(plan);
 
     expect(result.status).toBe("complete");
@@ -825,7 +862,7 @@ describe("WorkflowEngine", () => {
       },
     });
 
-    const engine = new WorkflowEngine(customRunner);
+    const engine = new WorkflowEngine(customRunner, new MarkdownTaskSource());
     const result = await engine.run(plan);
 
     expect(result.status).toBe("complete");
@@ -864,7 +901,7 @@ describe("WorkflowEngine", () => {
       },
     });
 
-    const engine = new WorkflowEngine(customRunner);
+    const engine = new WorkflowEngine(customRunner, new MarkdownTaskSource());
     const result = await engine.run(plan);
 
     expect(result.status).toBe("processFailure");
@@ -891,7 +928,7 @@ describe("WorkflowEngine", () => {
       verification: { requireTaskChecked: false, retries: 0 },
     });
 
-    const engine = new WorkflowEngine(customRunner);
+    const engine = new WorkflowEngine(customRunner, new MarkdownTaskSource());
     const result = await engine.run(plan);
 
     expect(result.status).toBe("iterationLimit");
@@ -903,7 +940,10 @@ describe("WorkflowEngine", () => {
     const controller = new AbortController();
     controller.abort();
 
-    const engine = new WorkflowEngine(new FakeProcessRunner());
+    const engine = new WorkflowEngine(
+      new FakeProcessRunner(),
+      new MarkdownTaskSource(),
+    );
     const result = await engine.run(createPlan(), {
       signal: controller.signal,
     });
@@ -922,7 +962,7 @@ describe("WorkflowEngine", () => {
       },
     };
 
-    const engine = new WorkflowEngine(customRunner);
+    const engine = new WorkflowEngine(customRunner, new MarkdownTaskSource());
     const result = await engine.runAsync(createPlan());
     expect(result.status).toBe("complete");
   });

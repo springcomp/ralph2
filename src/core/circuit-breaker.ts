@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
+import { atomicWrite } from "./atomic-file.js";
 import { StateLock } from "./locks.js";
-import { atomicWrite } from "./markdown-task-source.js";
 
 /** Persisted per-check streak state, keyed by check name. */
 interface CircuitBreakerState {

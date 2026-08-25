@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { compileWorkflow } from "../../src/config/compiler.js";
 import { parseWorkflowYaml } from "../../src/config/validator.js";
 import { WorkflowEngine } from "../../src/core/engine.js";
+import { MarkdownTaskSource } from "../../src/task-source/markdown-task-source.js";
 import type {
   ProcessRequest,
   ProcessResult,
@@ -133,7 +134,10 @@ verification:
   it("completes a two-step goal with no pre- or post-agent tasks", async () => {
     const runner = new FakeCodingAgent(prdPath, markerPath);
     const plan = createPlan();
-    const result = await new WorkflowEngine(runner).run(plan);
+    const result = await new WorkflowEngine(
+      runner,
+      new MarkdownTaskSource(),
+    ).run(plan);
 
     expect(result.status).toBe("complete");
     expect(
@@ -158,11 +162,16 @@ verification:
       false,
     );
     const events: string[] = [];
-    const result = await new WorkflowEngine(runner, undefined, undefined, {
-      onEvent: (event) => {
-        events.push(event.type);
+    const result = await new WorkflowEngine(
+      runner,
+      new MarkdownTaskSource(),
+      undefined,
+      {
+        onEvent: (event) => {
+          events.push(event.type);
+        },
       },
-    }).run(plan);
+    ).run(plan);
 
     expect(result.status).toBe("complete");
     expect(

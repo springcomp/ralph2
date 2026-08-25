@@ -1,7 +1,7 @@
 import type { StagePlan } from "../config/compiler.js";
-import type { MarkdownTaskSource } from "../core/markdown-task-source.js";
-import type { PlaceholderContext } from "../core/placeholders.js";
 import type { ProcessResult } from "../core/process-runner.js";
+import type { TaskSource } from "../core/task.js";
+import type { PlaceholderContext } from "../placeholders/placeholders.js";
 
 export interface ExtensionEvent {
   type: string;
@@ -11,7 +11,7 @@ export interface ExtensionEvent {
 }
 
 export interface ActionContext {
-  source: MarkdownTaskSource;
+  source: TaskSource;
   prdPath: string;
   stage: StagePlan;
   values: PlaceholderContext;
@@ -49,7 +49,7 @@ export interface TriggerContext {
   /** Workspace root directory. */
   workspace: string;
   /** Shared Markdown task source for reusing task-parsing/exhaustion logic. */
-  taskSource: MarkdownTaskSource;
+  taskSource: TaskSource;
   /** Placeholder expansion bound to the current context. */
   expand: (value: string) => string;
   /** Emit a structured workflow event. */

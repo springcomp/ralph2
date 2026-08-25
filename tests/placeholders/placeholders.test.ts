@@ -4,7 +4,7 @@ import {
   PlaceholderExpander,
   PlaceholderRegistry,
   conditionalArguments,
-} from "../../src/core/placeholders.js";
+} from "../../src/placeholders/placeholders.js";
 
 const context: PlaceholderContext = {
   model: "model/x",
