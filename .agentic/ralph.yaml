@@ -14,7 +14,7 @@ tasks:
     agent: agent
 
 defaults:
-  harness: pi
+  harness: copilot
   model: gpt-5.6-luna
   agent: null
   statusFormat: "🔄️ Iteration {ITERATION:000} - {TYP}-{NUM} - {TASK} (model: `{MODEL}`)"

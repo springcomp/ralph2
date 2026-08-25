@@ -1,3 +1,0 @@
-# TASKS
-
-Seed from blueprint.
