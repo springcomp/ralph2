@@ -6,3 +6,4 @@
 - [x] JJ-003 - Do not leave changes uncommitted from __commit.log
 - [x] TASK-005 - Phase 4: Cutover — CLI uses `compileCore()`/core engine, delete dead fat-plan machinery (ref: `TASK-005.md`)
 - [x] TASK-006 - Phase 5: Extensibility hook — registry-based lowering for continuations/triggers/breakers (ref: `TASK-006.md`)
+- [x] TASK-007 - Phase 6: Docs + cleanup — rewrite `DESIGN.md`, final verification pass (ref: `TASK-007.md`)
