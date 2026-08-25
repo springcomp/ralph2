@@ -1,9 +1,15 @@
 import { isAbsolute, normalize, resolve } from "node:path";
 import { parseEnvAssignment } from "../core/env-file.js";
+import type { CorePlan } from "../core/plan.js";
+import type { TaskSource } from "../core/task.js";
 import {
   type ExtensionRegistry,
   defaultExtensionRegistry,
 } from "../extensions/registry.js";
+import { PlaceholderExpander } from "../placeholders/placeholders.js";
+import type { PlaceholderContext } from "../placeholders/placeholders.js";
+import { lowerSteps } from "./lowering/steps.js";
+import { lowerWorkSource } from "./lowering/worksource.js";
 import type { CommandDto, V1WorkflowDocument } from "./schema-v1.js";
 import {
   type Diagnostic,
@@ -205,6 +211,7 @@ export function compileWorkflow(
       { path: "$", message: "invalid workflow document" },
     ]);
   }
+
   const harnesses = Object.fromEntries(
     Object.entries(configuredHarnesses).map(([name, dto]) => [
       name,
@@ -329,5 +336,60 @@ export function compileWorkflow(
     ptyDefault: options.pty,
     trigger,
     circuitBreaker,
+  };
+}
+
+export function compileCore(
+  document: V1WorkflowDocument,
+  configDirectory: string,
+  source: TaskSource,
+  options: CompileOptions = {},
+  extensions: ExtensionRegistry = defaultExtensionRegistry,
+): CorePlan {
+  const plan = compileWorkflow(document, configDirectory, options, extensions);
+  const expander = new PlaceholderExpander();
+  const values = (
+    ctx: import("../core/plan.js").CoreContext,
+  ): PlaceholderContext => ({
+    model: typeof ctx.model === "string" ? ctx.model : plan.model,
+    agent: typeof ctx.agent === "string" ? ctx.agent : plan.agent,
+    type: ctx.task.typ,
+    number: ctx.task.num,
+    task: ctx.task.description,
+    taskLine: ctx.task.rawLine,
+    root: `${ctx.task.typ}-${ctx.task.num}`,
+    prompt: plan.tasks.prompt,
+    prd: plan.tasks.prd,
+    progress: plan.tasks.progress,
+    iteration: ctx.iteration,
+    workspace: plan.workspace,
+  });
+  return {
+    workspace: plan.workspace,
+    maxIterations: plan.maxIterations,
+    source: lowerWorkSource(plan, source, extensions),
+    steps: lowerSteps(plan, source, expander),
+    guards: (plan.circuitBreaker?.checks ?? []).flatMap((check) => {
+      const registration = extensions.circuitBreaker(check.kind);
+      return registration
+        ? [
+            {
+              kind: check.kind,
+              threshold: check.threshold,
+              signature: (ctx: import("../core/plan.js").CoreContext) =>
+                registration.callback({
+                  kind: check.kind,
+                  workspace: plan.workspace,
+                  iteration: ctx.iteration,
+                  lastFailure: ctx.lastFailure as
+                    | { stage: string; exitCode: number | null }
+                    | undefined,
+                  expand: (value) => expander.expand(value, values(ctx)),
+                }),
+            },
+          ]
+        : [];
+    }),
+    status: (ctx) => expander.expand(plan.statusFormat, values(ctx)),
   };
 }

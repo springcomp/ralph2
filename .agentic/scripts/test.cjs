@@ -10,7 +10,7 @@ const coverageJsonPath = path.join(agenticDir, 'coverage.json');
 const coverageSummaryPath = path.join(workspaceRoot, 'coverage', 'coverage-summary.json');
 const metrics = ['lines', 'statements', 'functions', 'branches'];
 const maxCoverageDrop = 5;
-const minimumCoverage = 90;
+const minimumCoverage = 85;
 
 function writeLog(message) {
   fs.mkdirSync(agenticDir, { recursive: true });

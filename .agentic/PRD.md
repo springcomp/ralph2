@@ -1,2 +1,4 @@
 - [x] TASK-001 - Phase 0: Baseline safety net — green suite + golden tests for verification retry, remediation cap, trigger, circuit breaker (ref: `TASK-001.md`)
 - [x] TASK-002 - Phase 1: Core vocabulary types (`CorePlan`, `Step`, `Policy`, `WorkSource`, `Guard`, `Predicate`) in `src/core/plan.ts` (ref: `TASK-002.md`)
+- [x] TASK-003 - Phase 2: Compiler lowering — buckets/policy/verify-step and WorkSource composition into `compileCore()` (ref: `TASK-003.md`)
+- [ ] TASK-004 - Phase 3: New tiny engine — `pipeline.ts` + `engine-core.ts` over `CorePlan`, validated against goldens (ref: `TASK-004.md`)
