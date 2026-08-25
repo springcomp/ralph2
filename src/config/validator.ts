@@ -176,14 +176,17 @@ function semanticDiagnostics(
 
   const cont = document.continuation;
   if (cont && typeof cont === "object") {
-    if (cont.kind === "generatedGoal" && typeof cont.producer === "string") {
+    const lowering = string(cont.kind)
+      ? extensions.continuationLowering(cont.kind)
+      : undefined;
+    if (lowering?.schema?.usesProducer && typeof cont.producer === "string") {
       const producer = cont.producer.trim();
       if (producer && !extensions.producer(producer))
         d.push({
           path: "continuation.producer",
           message: `unknown producer '${cont.producer}'`,
         });
-    } else if (cont.kind === "generatedGoal" && cont.producer) {
+    } else if (lowering?.schema?.usesProducer && cont.producer) {
       collectCommandPlaceholders(
         "continuation.producer",
         cont.producer as CommandDto,

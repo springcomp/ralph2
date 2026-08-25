@@ -168,16 +168,16 @@ export function workflowSchema(registry: ExtensionRegistry): JsonSchema {
           },
           nextTask: { type: "string", minLength: 1 },
         },
-        allOf: [
-          {
-            if: { properties: { kind: { const: "blueprint" } } },
-            then: { required: ["source"] },
-          },
-          {
-            if: { properties: { kind: { const: "generatedGoal" } } },
-            then: { required: ["producer", "completeWhen", "nextTask"] },
-          },
-        ],
+        allOf: registry.continuationLowerings
+          .filter((lowering) => lowering.schema?.required?.length)
+          .map((lowering) => {
+            const entry: JsonSchema = {
+              if: { properties: { kind: { const: lowering.name } } },
+            };
+            // biome-ignore lint/suspicious/noThenProperty: JSON Schema if/then keyword, not a thenable
+            entry.then = { required: lowering.schema?.required };
+            return entry;
+          }),
       },
       trigger: {
         type: "object",

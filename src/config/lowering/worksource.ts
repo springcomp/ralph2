@@ -30,6 +30,7 @@ export class ChainedWorkSource implements WorkSource {
   constructor(
     private readonly sources: readonly WorkSource[],
     private readonly exhausted: "complete" | "blocked" = "complete",
+    readonly blockedMessage?: string,
   ) {}
   get completionStatus(): "complete" | "blocked" {
     return this.exhausted;

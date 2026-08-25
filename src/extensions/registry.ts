@@ -32,6 +32,14 @@ export type ExtensionRegistration = ActionRegistration | PredicateRegistration;
 export interface TemplateRegistration {
   name: string;
   files: ReadonlyMap<string, string>;
+  actions?: readonly ActionRegistration[];
+  predicates?: readonly PredicateRegistration[];
+  producers?: readonly ProducerRegistration[];
+  triggers?: readonly TriggerRegistration[];
+  circuitBreakers?: readonly CircuitBreakerRegistration[];
+  continuationLowerings?: readonly ContinuationLowering[];
+  triggerLowerings?: readonly TriggerLowering[];
+  circuitBreakerLowerings?: readonly CircuitBreakerLowering[];
 }
 
 export interface ProducerRegistration {
@@ -63,7 +71,6 @@ export interface ExtensionRegistry {
 import {
   BlueprintRefill,
   ChainedWorkSource,
-  GeneratorWorkSource,
   PrdSource,
   TriggerWorkSource,
 } from "../config/lowering/worksource.js";
@@ -74,7 +81,6 @@ import { repeatedFailureSignatureCircuitBreaker } from "./circuit-breakers/repea
 import { acceptedExitCodePredicate } from "./predicates/accepted-exit-code.js";
 import { fileExistsPredicate } from "./predicates/file-exists.js";
 import { fileMissingPredicate } from "./predicates/file-missing.js";
-import { goalProducerRegistration } from "./producers/goalProducer.js";
 import { blueprintTemplateRegistration } from "./templates/blueprint.js";
 import { goalTemplateRegistration } from "./templates/goal.js";
 import { taskAppearsTrigger } from "./triggers/task-appears.js";
@@ -97,10 +103,6 @@ const builtinTemplates: readonly TemplateRegistration[] = [
   blueprintTemplateRegistration,
 ];
 
-const builtinProducers: readonly ProducerRegistration[] = [
-  goalProducerRegistration,
-];
-
 const builtinTriggers: readonly TriggerRegistration[] = [taskAppearsTrigger];
 
 const builtinCircuitBreakers: readonly CircuitBreakerRegistration[] = [
@@ -111,6 +113,7 @@ const builtinCircuitBreakers: readonly CircuitBreakerRegistration[] = [
 const continuationLowerings: readonly ContinuationLowering[] = [
   {
     name: "blueprint",
+    schema: { required: ["source"] },
     lower: (dto, ctx) => {
       const continuation = dto as {
         source?: string;
@@ -128,28 +131,9 @@ const continuationLowerings: readonly ContinuationLowering[] = [
               ),
             ],
             continuation.completeWhenSourceExhausted ? "complete" : "blocked",
+            "Blueprint source exhausted.",
           )
         : ctx.base;
-    },
-  },
-  {
-    name: "generatedGoal",
-    lower: (dto, ctx) => {
-      if (
-        !ctx.plan.continuation?.producer ||
-        !ctx.plan.continuation.completeWhen ||
-        !ctx.plan.continuation.nextTask
-      )
-        return ctx.base;
-      return new GeneratorWorkSource(
-        ctx.base,
-        ctx.plan.continuation.producer,
-        ctx.plan.continuation.completeWhen,
-        ctx.plan.continuation.nextTask,
-        ctx.source,
-        ctx.plan,
-        ctx.extensions,
-      );
     },
   },
 ];
@@ -227,13 +211,29 @@ export function createExtensionRegistry(
     circuitBreakerLowerings?: readonly CircuitBreakerLowering[];
   } = {},
 ): ExtensionRegistry {
-  const registeredActions = [...actions, ...(extra.actions ?? [])];
-  const registeredPredicates = [...predicates, ...(extra.predicates ?? [])];
   const registeredTemplates = [...builtinTemplates, ...(extra.templates ?? [])];
-  const registeredProducers = [...builtinProducers, ...(extra.producers ?? [])];
-  const registeredTriggers = [...builtinTriggers, ...(extra.triggers ?? [])];
+  const registeredActions = [
+    ...actions,
+    ...registeredTemplates.flatMap((t) => t.actions ?? []),
+    ...(extra.actions ?? []),
+  ];
+  const registeredPredicates = [
+    ...predicates,
+    ...registeredTemplates.flatMap((t) => t.predicates ?? []),
+    ...(extra.predicates ?? []),
+  ];
+  const registeredProducers = [
+    ...registeredTemplates.flatMap((t) => t.producers ?? []),
+    ...(extra.producers ?? []),
+  ];
+  const registeredTriggers = [
+    ...builtinTriggers,
+    ...registeredTemplates.flatMap((t) => t.triggers ?? []),
+    ...(extra.triggers ?? []),
+  ];
   const registeredCircuitBreakers = [
     ...builtinCircuitBreakers,
+    ...registeredTemplates.flatMap((t) => t.circuitBreakers ?? []),
     ...(extra.circuitBreakers ?? []),
   ];
   const assertUnique = (
@@ -258,11 +258,17 @@ export function createExtensionRegistry(
   assertUnique("circuitBreaker", registeredCircuitBreakers);
   const registeredContinuationLowerings = [
     ...continuationLowerings,
+    ...registeredTemplates.flatMap((t) => t.continuationLowerings ?? []),
     ...(extra.continuationLowerings ?? []),
   ];
+  const templateTriggers = registeredTemplates.flatMap((t) => t.triggers ?? []);
+  const templateCircuitBreakers = registeredTemplates.flatMap(
+    (t) => t.circuitBreakers ?? [],
+  );
   const registeredTriggerLowerings = [
     ...triggerLowerings,
-    ...(extra.triggers ?? [])
+    ...registeredTemplates.flatMap((t) => t.triggerLowerings ?? []),
+    ...[...(extra.triggers ?? []), ...templateTriggers]
       .filter(
         (trigger) =>
           !triggerLowerings.some(
@@ -288,7 +294,8 @@ export function createExtensionRegistry(
   ];
   const registeredCircuitBreakerLowerings = [
     ...circuitBreakerLowerings,
-    ...(extra.circuitBreakers ?? [])
+    ...registeredTemplates.flatMap((t) => t.circuitBreakerLowerings ?? []),
+    ...[...(extra.circuitBreakers ?? []), ...templateCircuitBreakers]
       .filter(
         (breaker) =>
           !circuitBreakerLowerings.some(

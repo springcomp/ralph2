@@ -47,6 +47,8 @@ export interface WorkSource {
   pull(iteration: number): Promise<Task | null>;
   afterTask?(ctx: CoreContext): Promise<void>;
   readonly completionStatus?: "complete" | "blocked";
+  /** Message surfaced by the engine when `completionStatus` is `"blocked"`. */
+  readonly blockedMessage?: string;
 }
 
 export interface Guard {

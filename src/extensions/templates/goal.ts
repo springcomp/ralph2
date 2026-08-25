@@ -1,4 +1,7 @@
+import { GeneratorWorkSource } from "../../config/lowering/worksource.js";
+import { goalProducerRegistration } from "../producers/goalProducer.js";
 import type { TemplateRegistration } from "../registry.js";
+import type { ContinuationLowering } from "../types.js";
 
 const common = `schemaVersion: 1
 
@@ -66,6 +69,31 @@ continuation:
   nextTask: "- [ ] GOAL-{ITERATION:000} - Resolve remaining failures"
 `;
 
+export const generatedGoalContinuationLowering: ContinuationLowering = {
+  name: "generatedGoal",
+  schema: {
+    required: ["producer", "completeWhen", "nextTask"],
+    usesProducer: true,
+  },
+  lower: (dto, ctx) => {
+    if (
+      !ctx.plan.continuation?.producer ||
+      !ctx.plan.continuation.completeWhen ||
+      !ctx.plan.continuation.nextTask
+    )
+      return ctx.base;
+    return new GeneratorWorkSource(
+      ctx.base,
+      ctx.plan.continuation.producer,
+      ctx.plan.continuation.completeWhen,
+      ctx.plan.continuation.nextTask,
+      ctx.source,
+      ctx.plan,
+      ctx.extensions,
+    );
+  },
+};
+
 export const goalTemplateRegistration: TemplateRegistration = {
   name: "goal",
   files: new Map([
@@ -77,4 +105,6 @@ export const goalTemplateRegistration: TemplateRegistration = {
     ],
     ["progress.txt", "# Progress\n\n"],
   ]),
+  producers: [goalProducerRegistration],
+  continuationLowerings: [generatedGoalContinuationLowering],
 };

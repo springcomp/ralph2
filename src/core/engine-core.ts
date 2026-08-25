@@ -75,7 +75,7 @@ export class CoreEngine {
           return this.result(
             status,
             status === "blocked"
-              ? "Blueprint source exhausted."
+              ? (plan.source.blockedMessage ?? "Blocked.")
               : "No unchecked tasks remain.",
             iteration - 1,
             events,

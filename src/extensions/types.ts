@@ -105,6 +105,13 @@ export type CircuitBreakerCallback = (
 
 export type DtoFragment = Record<string, unknown>;
 
+/** Fields required in the surface YAML when this lowering's `kind` is selected. */
+export interface ContinuationSchemaFragment {
+  required?: string[];
+  /** Declares that `producer` should be validated as a named-producer-or-command. */
+  usesProducer?: boolean;
+}
+
 export interface ContinuationLoweringContext {
   plan: WorkflowPlan;
   source: TaskSource;
@@ -114,7 +121,7 @@ export interface ContinuationLoweringContext {
 
 export interface ContinuationLowering {
   name: string;
-  schema?: DtoFragment;
+  schema?: ContinuationSchemaFragment;
   lower(dto: unknown, context: ContinuationLoweringContext): WorkSource;
 }
 
