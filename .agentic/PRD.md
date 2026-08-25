@@ -4,3 +4,4 @@
 - [x] TASK-004 - Phase 3: New tiny engine — `pipeline.ts` + `engine-core.ts` over `CorePlan`, validated against goldens (ref: `TASK-004.md`)
 - [x] FIX-002 - Fix unit tests failed from __test.log or improve coverage as per requirements
 - [x] JJ-003 - Do not leave changes uncommitted from __commit.log
+- [x] TASK-005 - Phase 4: Cutover — CLI uses `compileCore()`/core engine, delete dead fat-plan machinery (ref: `TASK-005.md`)

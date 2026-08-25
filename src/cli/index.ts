@@ -3,16 +3,19 @@
 import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { Command } from "commander";
-import { WorkflowCompileError, compileWorkflow } from "../config/compiler.js";
+import {
+  WorkflowCompileError,
+  compileCore,
+  compileWorkflow,
+} from "../config/compiler.js";
 import { workflowSchemaYaml } from "../config/schema.js";
 import {
   WorkflowValidationError,
   parseWorkflowYaml,
 } from "../config/validator.js";
-import { WorkflowEngine } from "../core/engine.js";
+import { CoreEngine } from "../core/engine-core.js";
 import { WorkflowExitCodes } from "../core/exit-codes.js";
 import { RealProcessRunner } from "../core/process-runner.js";
-import { MarkdownTaskSource } from "../task-source/markdown-task-source.js";
 import {
   type ActionRegistration,
   type ExtensionProperty,
@@ -24,6 +27,7 @@ import {
   type TriggerRegistration,
   defaultExtensionRegistry,
 } from "../extensions/registry.js";
+import { MarkdownTaskSource } from "../task-source/markdown-task-source.js";
 
 export {
   createExtensionRegistry,
@@ -61,6 +65,23 @@ async function readConfig(
   return compileWorkflow(document, dirname(resolve(path)), options, extensions);
 }
 
+async function readCoreConfig(
+  path: string,
+  options: CliOptions,
+  source: MarkdownTaskSource,
+  extensions: ExtensionRegistry = defaultExtensionRegistry,
+) {
+  const text = await readFile(path, "utf8");
+  const document = parseWorkflowYaml(text);
+  return compileCore(
+    document,
+    dirname(resolve(path)),
+    source,
+    options,
+    extensions,
+  );
+}
+
 function fail(error: unknown): never {
   console.error(error instanceof Error ? error.message : String(error));
   process.exitCode = WorkflowExitCodes.InvalidConfiguration;
@@ -93,11 +114,16 @@ export function createProgram(
   addWorkflowOptions(program.command("run")).action(
     async (options: CliOptions) => {
       try {
-        const plan = await readConfig(options.config, options, extensions);
-        const engine = new WorkflowEngine(
+        const source = new MarkdownTaskSource();
+        const plan = await readCoreConfig(
+          options.config,
+          options,
+          source,
+          extensions,
+        );
+        const engine = new CoreEngine(
           new RealProcessRunner(),
-          new MarkdownTaskSource(),
-          undefined,
+          source,
           {
             onStatus: options.plain
               ? undefined

@@ -3,27 +3,26 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createProgram } from "../../src/cli/index.js";
-import type { WorkflowPlan } from "../../src/config/compiler.js";
-import { WorkflowEngine } from "../../src/core/engine.js";
+import { CoreEngine } from "../../src/core/engine-core.js";
 import type { WorkflowEngineCallbacks } from "../../src/core/engine.js";
 import { WorkflowExitCodes } from "../../src/core/exit-codes.js";
+import type { CorePlan } from "../../src/core/plan.js";
 import { createExtensionRegistry } from "../../src/extensions/registry.js";
 
-vi.mock("../../src/core/engine.js", () => {
+vi.mock("../../src/core/engine-core.js", () => {
   return {
-    WorkflowEngine: class MockWorkflowEngine {
-      static capturedPlans: WorkflowPlan[] = [];
+    CoreEngine: class MockCoreEngine {
+      static capturedPlans: CorePlan[] = [];
       callbacks?: WorkflowEngineCallbacks;
       constructor(
         _runner: unknown,
         _p: unknown,
-        _s: unknown,
         callbacks?: WorkflowEngineCallbacks,
       ) {
         this.callbacks = callbacks;
       }
-      async run(plan: WorkflowPlan, options: { plain?: boolean }) {
-        MockWorkflowEngine.capturedPlans.push(plan);
+      async run(plan: CorePlan, options: { plain?: boolean }) {
+        MockCoreEngine.capturedPlans.push(plan);
         if (!options.plain) {
           if (this.callbacks?.onStatus) {
             await this.callbacks.onStatus("Running task 1");
@@ -494,8 +493,12 @@ harnesses:
       ]);
       expect(
         (
-          WorkflowEngine as unknown as { capturedPlans: WorkflowPlan[] }
-        ).capturedPlans.at(-1)?.ptyDefault,
+          (
+            CoreEngine as unknown as { capturedPlans: CorePlan[] }
+          ).capturedPlans.at(-1)?.steps[0]?.stage as
+            | { pty?: boolean }
+            | undefined
+        )?.pty,
       ).toBe(true);
 
       await createProgram().parseAsync([
@@ -508,8 +511,12 @@ harnesses:
       ]);
       expect(
         (
-          WorkflowEngine as unknown as { capturedPlans: WorkflowPlan[] }
-        ).capturedPlans.at(-1)?.ptyDefault,
+          (
+            CoreEngine as unknown as { capturedPlans: CorePlan[] }
+          ).capturedPlans.at(-1)?.steps[0]?.stage as
+            | { pty?: boolean }
+            | undefined
+        )?.pty,
       ).toBe(false);
 
       await createProgram().parseAsync([
@@ -521,8 +528,12 @@ harnesses:
       ]);
       expect(
         (
-          WorkflowEngine as unknown as { capturedPlans: WorkflowPlan[] }
-        ).capturedPlans.at(-1)?.ptyDefault,
+          (
+            CoreEngine as unknown as { capturedPlans: CorePlan[] }
+          ).capturedPlans.at(-1)?.steps[0]?.stage as
+            | { pty?: boolean }
+            | undefined
+        )?.pty,
       ).toBeUndefined();
     });
 
