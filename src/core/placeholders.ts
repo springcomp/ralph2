@@ -10,6 +10,8 @@ export interface PlaceholderContext {
   readonly number?: string | number | null;
   readonly task?: string | null;
   readonly taskLine?: string | null;
+  /** TYP-NUM of the root task in this task's remediation chain (itself when not a remediation task). */
+  readonly root?: string | null;
   readonly prompt?: string | null;
   readonly prd?: string | null;
   readonly progress?: string | null;
@@ -38,6 +40,11 @@ export const PlaceholderRegistry = Object.freeze({
       name: "TASK_LINE",
       description: "The complete source line for the current task.",
     },
+    {
+      name: "ROOT",
+      description:
+        "The TYP-NUM id of the root task in the current task's remediation chain.",
+    },
     { name: "PROMPT", description: "The path to the agent prompt file." },
     { name: "PRD", description: "The path to the PRD task file." },
     { name: "PROGRESS", description: "The path to the progress file." },
@@ -58,6 +65,7 @@ export const PlaceholderRegistry = Object.freeze({
     "NUM",
     "TASK",
     "TASK_LINE",
+    "ROOT",
     "PROMPT",
     "PRD",
     "PROGRESS",
@@ -72,6 +80,7 @@ export const PlaceholderRegistry = Object.freeze({
     "NUM",
     "TASK",
     "TASK_LINE",
+    "ROOT",
     "PROMPT",
     "PRD",
     "PROGRESS",
@@ -90,6 +99,7 @@ export class PlaceholderExpander {
       NUM: String(context.number ?? ""),
       TASK: context.task ?? "",
       TASK_LINE: context.taskLine ?? "",
+      ROOT: context.root ?? "",
       PROMPT: context.prompt ?? "",
       PRD: context.prd ?? "",
       PROGRESS: context.progress ?? "",

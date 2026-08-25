@@ -244,7 +244,7 @@ export function createProgram(
     "variables",
     () => {
       console.log(
-        "MODEL\nAGENT\nTYP\nNUM\nTASK\nTASK_LINE\nPROMPT\nPRD\nPROGRESS\nITERATION\nITERATION:000\nWORKSPACE",
+        "MODEL\nAGENT\nTYP\nNUM\nTASK\nTASK_LINE\nROOT\nPROMPT\nPRD\nPROGRESS\nITERATION\nITERATION:000\nWORKSPACE",
       );
     },
     ["vars"],

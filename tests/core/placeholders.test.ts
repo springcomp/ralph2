@@ -29,6 +29,7 @@ describe("PlaceholderRegistry", () => {
       "NUM",
       "TASK",
       "TASK_LINE",
+      "ROOT",
       "PROMPT",
       "PRD",
       "PROGRESS",

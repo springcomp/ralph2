@@ -57,6 +57,7 @@ Ralph performs variable expansion on command executables, argument lists, enviro
 | `{NUM}` | Task numerical identifier (e.g., `001`) |
 | `{TASK}` | Task description without inline metadata tags |
 | `{TASK_LINE}` | Verbatim Markdown task line |
+| `{ROOT}` | Root task TYP-NUM id in remediation chain (self when not remediation) |
 | `{PROMPT}` | Path to prompt file (or temporary verification prompt during retry) |
 | `{PRD}` | Resolved absolute or relative path to PRD Markdown file |
 | `{PROGRESS}` | Resolved path to progress notes file |

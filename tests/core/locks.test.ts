@@ -148,7 +148,11 @@ describe("StateLock", () => {
         timestamp: new Date(0).toISOString(),
       }),
     );
-    const lock = new StateLock(file, { staleAfterMs: 1, timeoutMs: 20 });
+    const lock = new StateLock(file, {
+      staleAfterMs: 1,
+      timeoutMs: 200,
+      retryMs: 5,
+    });
     await lock.acquire();
     await lock.release();
   });

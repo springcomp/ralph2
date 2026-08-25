@@ -116,7 +116,7 @@ export class WorkflowEngine {
           continue;
         }
         const original = task;
-        const originalValues = this.values(plan, original, options, iteration);
+        const originalValues = await this.values(plan, original, options, iteration);
         const values = originalValues;
         let remediationScheduled = false;
         await emit({
@@ -306,12 +306,18 @@ export class WorkflowEngine {
   ): Promise<WorkflowRunResult> {
     return this.run(plan, options);
   }
-  private values(
+  private async values(
     plan: WorkflowPlan,
     task: MarkdownTask,
     options: WorkflowOptions,
     iteration: number,
-  ): PlaceholderContext {
+  ): Promise<PlaceholderContext> {
+    let root = `${task.typ}-${task.num}`;
+    try {
+      root = (await this.source.remediationDepth(plan.tasks.prd, task)).rootId;
+    } catch {
+      // Root task no longer resolvable (deleted/renamed); fall back to self.
+    }
     return {
       model: task.model ?? options.model ?? plan.model,
       agent: task.agent ?? options.agent ?? plan.agent,
@@ -319,6 +325,7 @@ export class WorkflowEngine {
       number: task.num,
       task: task.description,
       taskLine: task.rawLine,
+      root,
       prompt: plan.tasks.prompt,
       prd: plan.tasks.prd,
       progress: plan.tasks.progress,

@@ -158,7 +158,7 @@ export class MarkdownTaskSource {
     const byId = new Map(
       parsed.map(({ task }) => [task.id.toLowerCase(), task]),
     );
-    const parentPattern = /\(parent:\s*([A-Za-z][A-Za-z0-9]*-\d\w*)\)/i;
+    const parentPattern = /\(parent:\s*([A-Za-z][A-Za-z0-9]*-\d\w*)\)/gi;
     const visited = new Set<string>();
     let current = target;
     let depth = 0;
@@ -169,7 +169,10 @@ export class MarkdownTaskSource {
           `Remediation parent cycle detected at task '${current.id}'.`,
         );
       visited.add(key);
-      const parentId = current.description.match(parentPattern)?.[1];
+      // The immediate parent is the last (most recently appended) tag: a
+      // description can carry inherited ancestor tags too.
+      const matches = [...current.description.matchAll(parentPattern)];
+      const parentId = matches.at(-1)?.[1];
       if (!parentId) return { depth, rootId: current.id };
       const parent = byId.get(parentId.toLowerCase());
       if (!parent)
