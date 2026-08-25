@@ -1,0 +1,5 @@
+- [x] TASK-001 - Phase 0: Baseline safety net — green suite + golden tests for verification retry, remediation cap, trigger, circuit breaker (ref: `TASK-001.md`)
+- [x] FIX-002 - Unit tests failed or coverage worse; inspect __test.log
+- [x] FIX-003 - Unit tests failed or coverage worse; inspect __test.log
+- [x] FIX-004 - Unit tests failed or coverage worse; inspect __test.log
+- [x] FIX-005 - Task changes were not committed with jj; inspect __commit.log

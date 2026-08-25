@@ -4,7 +4,6 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { StagePlan, WorkflowPlan } from "../../src/config/compiler.js";
 import { WorkflowEngine, type WorkflowEvent } from "../../src/core/engine.js";
-import { MarkdownTaskSource } from "../../src/task-source/markdown-task-source.js";
 import { WorkflowExitCodes } from "../../src/core/exit-codes.js";
 import { FakeProcessRunner } from "../../src/core/fake-process-runner.js";
 import type {
@@ -13,6 +12,7 @@ import type {
 } from "../../src/core/process-runner.js";
 import { createExtensionRegistry } from "../../src/extensions/registry.js";
 import type { TriggerRegistration } from "../../src/extensions/registry.js";
+import { MarkdownTaskSource } from "../../src/task-source/markdown-task-source.js";
 
 const createStagePlan = (overrides: Partial<StagePlan> = {}): StagePlan => ({
   name: "stage",
@@ -122,9 +122,63 @@ describe("WorkflowEngine triggers", () => {
     expect(result.status).toBe("complete");
     expect(fireCount).toBe(2);
     expect(runner.requests).toHaveLength(1);
-    expect(events.some((e) => e.type === "trigger.waiting")).toBe(true);
-    expect(events.some((e) => e.type === "trigger.fired")).toBe(true);
-    expect(events.some((e) => e.type === "trigger.terminated")).toBe(true);
+    expect(events.map(({ type }) => type)).toEqual([
+      "trigger.waiting",
+      "trigger.fired",
+      "task.started",
+      "stage.started",
+      "stage.completed",
+      "trigger.waiting",
+      "trigger.terminated",
+    ]);
+  });
+
+  it("returns canceled after entering trigger idle and being aborted", async () => {
+    await writeFile(prdPath, "", "utf8");
+    const controller = new AbortController();
+    const trigger: TriggerRegistration = {
+      name: "abortable",
+      description: "test",
+      properties: [],
+      callback: async ({ signal }) => {
+        callbackResolve?.();
+        return new Promise((resolve) => {
+          signal?.addEventListener(
+            "abort",
+            () => {
+              resolve(null);
+            },
+            { once: true },
+          );
+        });
+      },
+    };
+    const events: WorkflowEvent[] = [];
+    let callbackResolve: (() => void) | undefined;
+    const callbackStarted = new Promise<void>((resolve) => {
+      callbackResolve = resolve;
+    });
+    const engine = new WorkflowEngine(
+      new FakeProcessRunner(),
+      new MarkdownTaskSource(),
+      undefined,
+      { onEvent: (event) => void events.push(event) },
+      createExtensionRegistry({ triggers: [trigger] }),
+    );
+    const runPromise = engine.run(
+      createPlan({
+        trigger: { kind: "abortable", source: prdPath, pollIntervalMs: 1 },
+      }),
+      { signal: controller.signal },
+    );
+
+    await callbackStarted;
+    controller.abort();
+    const result = await runPromise;
+
+    expect(result.status).toBe("canceled");
+    expect(result.exitCode).toBe(WorkflowExitCodes.ProcessFailure);
+    expect(events.map(({ type }) => type)).toEqual(["trigger.waiting"]);
   });
 
   it("caps total iterations across wake-ups via maxIterations", async () => {

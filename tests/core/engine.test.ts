@@ -4,7 +4,6 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { StagePlan, WorkflowPlan } from "../../src/config/compiler.js";
 import { WorkflowEngine, type WorkflowEvent } from "../../src/core/engine.js";
-import { MarkdownTaskSource } from "../../src/task-source/markdown-task-source.js";
 import { WorkflowExitCodes } from "../../src/core/exit-codes.js";
 import { FakeProcessRunner } from "../../src/core/fake-process-runner.js";
 import { WorkspaceLock } from "../../src/core/locks.js";
@@ -12,6 +11,7 @@ import type {
   ProcessRequest,
   ProcessResult,
 } from "../../src/core/process-runner.js";
+import { MarkdownTaskSource } from "../../src/task-source/markdown-task-source.js";
 
 const createStagePlan = (overrides: Partial<StagePlan> = {}): StagePlan => ({
   name: "stage",
@@ -145,14 +145,26 @@ describe("WorkflowEngine", () => {
       { exitCode: 0, signal: null, timedOut: false, cancelled: false },
       { exitCode: 1, signal: null, timedOut: false, cancelled: false },
     ]);
+    const events: WorkflowEvent[] = [];
     const result = await new WorkflowEngine(
       runner,
       new MarkdownTaskSource(),
+      undefined,
+      { onEvent: (event) => void events.push(event) },
     ).run(plan);
 
     expect(result.status).toBe("blocked");
+    expect(result.exitCode).toBe(WorkflowExitCodes.Blocked);
     expect(result.message).toContain("Maximum remediation attempts (2)");
     expect(result.message).toContain("TASK-001");
+    expect(events.map(({ type }) => type)).toEqual([
+      "task.started",
+      "stage.started",
+      "stage.completed",
+      "stage.started",
+      "stage.completed",
+      "remediation.exhausted",
+    ]);
     expect((await readFile(prdPath, "utf8")).match(/^- \[ \]/gm)).toHaveLength(
       1,
     );
@@ -641,11 +653,25 @@ describe("WorkflowEngine", () => {
       },
     });
 
-    const engine = new WorkflowEngine(customRunner, new MarkdownTaskSource());
+    const events: WorkflowEvent[] = [];
+    const engine = new WorkflowEngine(
+      customRunner,
+      new MarkdownTaskSource(),
+      undefined,
+      { onEvent: (event) => void events.push(event) },
+    );
     const result = await engine.run(plan);
 
     expect(result.status).toBe("complete");
+    expect(result.exitCode).toBe(WorkflowExitCodes.Complete);
     expect(harnessInvocations).toBe(2);
+    expect(events.map(({ type }) => type)).toEqual([
+      "task.started",
+      "stage.started",
+      "stage.completed",
+      "stage.started",
+      "stage.completed",
+    ]);
   });
 
   it("returns blocked when task remains unchecked after all verification retries", async () => {
@@ -660,12 +686,26 @@ describe("WorkflowEngine", () => {
       },
     });
 
-    const engine = new WorkflowEngine(runner, new MarkdownTaskSource());
+    const events: WorkflowEvent[] = [];
+    const engine = new WorkflowEngine(
+      runner,
+      new MarkdownTaskSource(),
+      undefined,
+      { onEvent: (event) => void events.push(event) },
+    );
     const result = await engine.run(plan);
 
     expect(result.status).toBe("blocked");
     expect(result.exitCode).toBe(WorkflowExitCodes.Blocked);
     expect(result.message).toContain("remained unchecked after verification");
+    expect(runner.requests).toHaveLength(2);
+    expect(events.map(({ type }) => type)).toEqual([
+      "task.started",
+      "stage.started",
+      "stage.completed",
+      "stage.started",
+      "stage.completed",
+    ]);
   });
 
   it("handles verification retry failure when harness process crashes", async () => {

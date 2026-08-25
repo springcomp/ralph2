@@ -5,13 +5,13 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { compileWorkflow } from "../../src/config/compiler.js";
 import { parseWorkflowYaml } from "../../src/config/validator.js";
 import { WorkflowEngine } from "../../src/core/engine.js";
-import { MarkdownTaskSource } from "../../src/task-source/markdown-task-source.js";
 import type {
   ProcessRequest,
   ProcessResult,
   ProcessRunner,
 } from "../../src/core/process-runner.js";
 import { defaultExtensionRegistry } from "../../src/extensions/registry.js";
+import { MarkdownTaskSource } from "../../src/task-source/markdown-task-source.js";
 
 const success = (): ProcessResult => ({
   exitCode: 0,

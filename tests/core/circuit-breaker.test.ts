@@ -10,7 +10,6 @@ import {
   evaluateCircuitBreaker,
 } from "../../src/core/circuit-breaker.js";
 import { WorkflowEngine, type WorkflowEvent } from "../../src/core/engine.js";
-import { MarkdownTaskSource } from "../../src/task-source/markdown-task-source.js";
 import { WorkflowExitCodes } from "../../src/core/exit-codes.js";
 import { FakeProcessRunner } from "../../src/core/fake-process-runner.js";
 import type {
@@ -22,6 +21,7 @@ import {
   type CircuitBreakerRegistration,
   createExtensionRegistry,
 } from "../../src/extensions/registry.js";
+import { MarkdownTaskSource } from "../../src/task-source/markdown-task-source.js";
 
 const run = promisify(execFile);
 
@@ -249,7 +249,29 @@ describe("WorkflowEngine circuit breaker", () => {
     expect(result.status).toBe("blocked");
     expect(result.exitCode).toBe(WorkflowExitCodes.Blocked);
     expect(result.message).toContain("alwaysFails");
-    expect(events.some((e) => e.type === "circuitBreaker.tripped")).toBe(true);
+    expect(events.map(({ type }) => type)).toEqual([
+      "task.started",
+      "stage.started",
+      "stage.completed",
+      "stage.started",
+      "stage.completed",
+      "stage.continued",
+      "circuitBreaker.streak",
+      "task.started",
+      "stage.started",
+      "stage.completed",
+      "stage.started",
+      "stage.completed",
+      "stage.continued",
+      "circuitBreaker.streak",
+      "task.started",
+      "stage.started",
+      "stage.completed",
+      "stage.started",
+      "stage.completed",
+      "stage.continued",
+      "circuitBreaker.tripped",
+    ]);
   });
 
   it("does not trip when the failure signature changes across iterations", async () => {
