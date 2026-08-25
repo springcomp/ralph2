@@ -215,6 +215,30 @@ describe("step lowering", () => {
 });
 
 describe("work-source lowering", () => {
+  it("lowers a custom continuation through the registry", () => {
+    const custom = {
+      pull: vi.fn(async () => task),
+    };
+    const registry = createExtensionRegistry({
+      continuationLowerings: [
+        {
+          name: "custom",
+          lower: () => custom,
+        },
+      ],
+    });
+    const workflow = plan("C:\\workspace", {
+      continuation: {
+        kind: "custom",
+        seedPrdFromSource: false,
+        completeWhenSourceExhausted: false,
+      },
+    });
+
+    const lowered = lowerWorkSource(workflow, source(), registry);
+    expect(lowered).toBe(custom);
+  });
+
   it("pulls PRD tasks, refills blueprints, chains sources, and handles generated goals", async () => {
     const first = source();
     expect(await new PrdSource(first, "prd").pull()).toBe(task);

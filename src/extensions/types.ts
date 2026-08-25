@@ -1,7 +1,14 @@
-import type { StagePlan } from "../config/compiler.js";
+import type {
+  CircuitBreakerCheckPlan,
+  StagePlan,
+  TriggerPlan,
+  WorkflowPlan,
+} from "../config/compiler.js";
+import type { CoreContext, Guard, WorkSource } from "../core/plan.js";
 import type { ProcessResult } from "../core/process-runner.js";
 import type { TaskSource } from "../core/task.js";
 import type { PlaceholderContext } from "../placeholders/placeholders.js";
+import type { ExtensionRegistry } from "./registry.js";
 
 export interface ExtensionEvent {
   type: string;
@@ -95,3 +102,47 @@ export interface CircuitBreakerContext {
 export type CircuitBreakerCallback = (
   context: CircuitBreakerContext,
 ) => Promise<string | null>;
+
+export type DtoFragment = Record<string, unknown>;
+
+export interface ContinuationLoweringContext {
+  plan: WorkflowPlan;
+  source: TaskSource;
+  extensions: ExtensionRegistry;
+  base: WorkSource;
+}
+
+export interface ContinuationLowering {
+  name: string;
+  schema?: DtoFragment;
+  lower(dto: unknown, context: ContinuationLoweringContext): WorkSource;
+}
+
+export interface TriggerLoweringContext {
+  plan: WorkflowPlan;
+  source: TaskSource;
+  extensions: ExtensionRegistry;
+  inner: WorkSource;
+}
+
+export interface TriggerLowering {
+  name: string;
+  schema?: DtoFragment;
+  lower(dto: TriggerPlan, context: TriggerLoweringContext): WorkSource;
+}
+
+export interface CircuitBreakerLoweringContext {
+  plan: WorkflowPlan;
+  extensions: ExtensionRegistry;
+  expander: import("../placeholders/placeholders.js").PlaceholderExpander;
+  values(ctx: CoreContext): PlaceholderContext;
+}
+
+export interface CircuitBreakerLowering {
+  name: string;
+  schema?: DtoFragment;
+  lower(
+    dto: CircuitBreakerCheckPlan,
+    context: CircuitBreakerLoweringContext,
+  ): Guard;
+}

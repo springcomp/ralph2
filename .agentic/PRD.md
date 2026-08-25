@@ -5,3 +5,4 @@
 - [x] FIX-002 - Fix unit tests failed from __test.log or improve coverage as per requirements
 - [x] JJ-003 - Do not leave changes uncommitted from __commit.log
 - [x] TASK-005 - Phase 4: Cutover — CLI uses `compileCore()`/core engine, delete dead fat-plan machinery (ref: `TASK-005.md`)
+- [x] TASK-006 - Phase 5: Extensibility hook — registry-based lowering for continuations/triggers/breakers (ref: `TASK-006.md`)

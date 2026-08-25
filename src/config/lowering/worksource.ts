@@ -124,41 +124,29 @@ export function lowerWorkSource(
   extensions: ExtensionRegistry,
 ): WorkSource {
   const base = new PrdSource(source, plan.tasks.prd);
+  let result: WorkSource = base;
   const continuation = plan.continuation;
-  let result: WorkSource =
-    continuation?.kind === "blueprint" &&
-    continuation.source &&
-    continuation.seedPrdFromSource
-      ? new ChainedWorkSource(
-          [
-            base,
-            new BlueprintRefill(source, plan.tasks.prd, continuation.source),
-          ],
-          continuation.completeWhenSourceExhausted ? "complete" : "blocked",
-        )
-      : base;
-  if (
-    continuation?.kind === "generatedGoal" &&
-    continuation.producer &&
-    continuation.completeWhen &&
-    continuation.nextTask
-  )
-    result = new GeneratorWorkSource(
-      result,
-      continuation.producer,
-      continuation.completeWhen,
-      continuation.nextTask,
-      source,
+  if (continuation) {
+    const lowering = extensions.continuationLowering(continuation.kind);
+    if (!lowering)
+      throw new Error(`Continuation '${continuation.kind}' is not registered.`);
+    result = lowering.lower(continuation, {
       plan,
-      extensions,
-    );
-  if (plan.trigger)
-    result = new TriggerWorkSource(
-      result,
-      plan.trigger,
       source,
-      plan,
       extensions,
-    );
+      base: result,
+    });
+  }
+  if (plan.trigger) {
+    const lowering = extensions.triggerLowering(plan.trigger.kind);
+    if (!lowering)
+      throw new Error(`Trigger '${plan.trigger.kind}' is not registered.`);
+    result = lowering.lower(plan.trigger, {
+      plan,
+      source,
+      extensions,
+      inner: result,
+    });
+  }
   return result;
 }

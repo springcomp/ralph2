@@ -369,29 +369,18 @@ export function compileCore(
     maxIterations: plan.maxIterations,
     source: lowerWorkSource(plan, source, extensions),
     steps: lowerSteps(plan, source, expander),
-    guards: (plan.circuitBreaker?.checks ?? []).flatMap((check) => {
-      const registration = extensions.circuitBreaker(check.kind);
-      return [
-        {
-          kind: check.kind,
-          threshold: check.threshold,
-          signature: (ctx: import("../core/plan.js").CoreContext) => {
-            if (!registration)
-              throw new Error(
-                `Circuit breaker check '${check.kind}' is not registered.`,
-              );
-            return registration.callback({
-              kind: check.kind,
-              workspace: plan.workspace,
-              iteration: ctx.iteration,
-              lastFailure: ctx.lastFailure as
-                | { stage: string; exitCode: number | null }
-                | undefined,
-              expand: (value) => expander.expand(value, values(ctx)),
-            });
-          },
-        },
-      ];
+    guards: (plan.circuitBreaker?.checks ?? []).map((check) => {
+      const lowering = extensions.circuitBreakerLowering(check.kind);
+      if (!lowering)
+        throw new Error(
+          `Circuit breaker check '${check.kind}' lowering is not registered.`,
+        );
+      return lowering.lower(check, {
+        plan,
+        extensions,
+        expander,
+        values,
+      });
     }),
     context: (ctx) => values(ctx) as unknown as Record<string, unknown>,
     runStage: (stage, ctx) =>

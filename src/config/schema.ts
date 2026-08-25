@@ -137,7 +137,11 @@ export function workflowSchema(registry: ExtensionRegistry): JsonSchema {
       continuation: {
         type: "object",
         properties: {
-          kind: { enum: ["blueprint", "generatedGoal"] },
+          kind: {
+            enum: registry.continuationLowerings.map(
+              (lowering) => lowering.name,
+            ),
+          },
           source: { type: "string", minLength: 1 },
           seedPrdFromSource: { type: "boolean" },
           completeWhenSourceExhausted: { type: "boolean" },
