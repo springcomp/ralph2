@@ -1,1 +1,2 @@
 - [x] TASK-001 - Phase 0: Baseline safety net — green suite + golden tests for verification retry, remediation cap, trigger, circuit breaker (ref: `TASK-001.md`)
+- [x] TASK-002 - Phase 1: Core vocabulary types (`CorePlan`, `Step`, `Policy`, `WorkSource`, `Guard`, `Predicate`) in `src/core/plan.ts` (ref: `TASK-002.md`)
