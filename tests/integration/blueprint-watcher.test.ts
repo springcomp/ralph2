@@ -18,13 +18,13 @@ afterEach(async () => {
   );
 });
 
-describe("blueprint watcher integration", () => {
+describe("blueprint watcher queue integration", () => {
   it("waits for a new blueprint task and processes it with a fake runner", async () => {
     const workspace = await mkdtemp(join(tmpdir(), "ralph-blueprint-watcher-"));
     temporaryDirectories.push(workspace);
-    const prdPath = join(workspace, "PRD.md");
+    const queuePath = join(workspace, "queue.md");
     const blueprintPath = join(workspace, "BLUEPRINT.md");
-    await writeFile(prdPath, "# Product Requirements\n\n", "utf8");
+    await writeFile(queuePath, "# Task Queue\n\n", "utf8");
     await writeFile(
       blueprintPath,
       "# Blueprint\n\n- [ ] TASK-001 - Initial task\n",
@@ -34,7 +34,8 @@ describe("blueprint watcher integration", () => {
     const plan = {
       workspace,
       tasks: {
-        prd: prdPath,
+        queue: queuePath,
+        prd: queuePath,
         progress: join(workspace, "progress.txt"),
         prompt: join(workspace, "prompt.md"),
         completionSignal: "",
@@ -51,7 +52,7 @@ describe("blueprint watcher integration", () => {
         pollIntervalMs: 5,
       },
     } as WorkflowPlan;
-    const source = new MarkdownTaskSource(prdPath);
+    const source = new MarkdownTaskSource(queuePath);
     const runner = new FakeProcessRunner();
     const workflow = lowerWorkSource(plan, source, defaultExtensionRegistry);
 
