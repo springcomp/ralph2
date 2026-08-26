@@ -34,6 +34,11 @@ describe("generated goal empty PRD integration", () => {
     temporaryDirectories.push(workspace);
     const prdPath = join(workspace, "PRD.md");
     await writeFile(prdPath, "# Product Requirements\n\n", "utf8");
+    await writeFile(
+      join(workspace, "prompt.md"),
+      "Implement the assigned task.\n",
+      "utf8",
+    );
 
     const source = new MarkdownTaskSource(prdPath);
     const runner: ProcessRunner & { requests: ProcessRequest[] } = {

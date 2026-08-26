@@ -83,6 +83,66 @@ const source = (overrides: Partial<TaskSource> = {}): TaskSource => ({
 });
 
 describe("step lowering", () => {
+  it("materializes an owned harness prompt without expanding source content", async () => {
+    const root = await mkdtemp(join(tmpdir(), "ralph-harness-prompt-"));
+    try {
+      const sourcePrompt = "Implement {CUSTOM_SYNTAX} exactly.\n";
+      const promptPath = join(root, "prompt.md");
+      await writeFile(promptPath, sourcePrompt, "utf8");
+      const workflow = plan(root, {
+        tasks: {
+          prd: join(root, "PRD.md"),
+          progress: join(root, "progress.txt"),
+          prompt: promptPath,
+          completionSignal: "",
+        },
+        goalPath: join(root, "GOAL.md"),
+        harnesses: { harness: stage("harness", { arguments: ["{PROMPT}"] }) },
+        verification: {
+          requireTaskChecked: true,
+          retries: 0,
+          prompt: "Verify {TASK}",
+        },
+      });
+      const runner = new FakeProcessRunner([
+        { exitCode: 0, signal: null, timedOut: false, cancelled: false },
+        { exitCode: 0, signal: null, timedOut: false, cancelled: false },
+      ]);
+      const steps = lowerSteps(workflow, source());
+
+      await steps[0].run({ workspace: root, iteration: 2, task, runner });
+
+      expect(runner.requests[0].args).toEqual([
+        join(root, ".agentic", "__harness.prompt.md"),
+      ]);
+      expect(
+        await readFile(join(root, ".agentic", "__harness.prompt.md"), "utf8"),
+      ).toBe(
+        [
+          "# Assigned task",
+          "Task ID: TASK-001",
+          "Task: - [ ] TASK-001 - Do work",
+          `Goal: ${workflow.goalPath}`,
+          `Progress: ${workflow.tasks.progress}`,
+          "Ownership: You own this assigned task. Do not select, reorder, or mutate the task queue; implement the assignment and leave verification to the workflow.",
+          "",
+          sourcePrompt,
+        ].join("\n"),
+      );
+      expect(await readFile(promptPath, "utf8")).toBe(sourcePrompt);
+
+      await steps.at(-1)?.run({ workspace: root, iteration: 2, task, runner });
+      expect(
+        await readFile(
+          join(root, ".agentic", "__verification.prompt.md"),
+          "utf8",
+        ),
+      ).toBe("Verify Do work");
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
   it("runs stages, expands values, loads env files, emits events, and validates artifacts", async () => {
     const root = await mkdtemp(join(tmpdir(), "ralph-lowering-"));
     try {
@@ -451,7 +511,10 @@ describe("work-source lowering", () => {
       getFirstUncheckedTask: vi.fn(async () => (hasTask ? task : null)),
     });
     const chained = new ChainedWorkSource([
-      new PrdSource(source({ getFirstUncheckedTask: vi.fn(async () => null) }), "prd"),
+      new PrdSource(
+        source({ getFirstUncheckedTask: vi.fn(async () => null) }),
+        "prd",
+      ),
       new PrdSource(second, "prd"),
     ]);
     expect(await chained.pull(1)).toBeNull();
@@ -467,9 +530,7 @@ describe("work-source lowering", () => {
     let prdHasTask = false;
     let blueprintHasNewTask = false;
     const taskSource = source({
-      getFirstUncheckedTask: vi.fn(async () =>
-        prdHasTask ? task : null,
-      ),
+      getFirstUncheckedTask: vi.fn(async () => (prdHasTask ? task : null)),
       seedBlueprintTask: vi.fn(async () => {
         if (blueprintHasNewTask) {
           prdHasTask = true;
@@ -486,14 +547,19 @@ describe("work-source lowering", () => {
         seedPrdFromSource: true,
         completeWhenSourceExhausted: true,
       },
-      trigger: { kind: "taskAppears", source: blueprintPath, pollIntervalMs: 5 },
+      trigger: {
+        kind: "taskAppears",
+        source: blueprintPath,
+        pollIntervalMs: 5,
+      },
     });
     const lowered = lowerWorkSource(
       workflow,
       taskSource,
       defaultExtensionRegistry,
-      { getFirstUncheckedTask: async () =>
-          blueprintHasNewTask ? task : null },
+      {
+        getFirstUncheckedTask: async () => (blueprintHasNewTask ? task : null),
+      },
     );
     expect(lowered).toBeInstanceOf(TriggerWorkSource);
 

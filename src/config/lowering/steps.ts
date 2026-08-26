@@ -1,5 +1,5 @@
 import { mkdir, writeFile } from "node:fs/promises";
-import { dirname } from "node:path";
+import { dirname, join } from "node:path";
 import { loadEnvFile } from "../../core/env-file.js";
 import { readTextFile } from "../../core/file-io.js";
 import type {
@@ -21,6 +21,7 @@ type RuntimeContext = CoreContext & {
   runner: ProcessRunner;
   expander: PlaceholderExpander;
   plan: WorkflowPlan;
+  harnessPrompt?: boolean;
   emit?: (event: {
     type: string;
     iteration: number;
@@ -56,15 +57,63 @@ export async function runStage(
   const v = values(ctx);
   const { runner, expander, plan } = ctx;
   let stageValues = v;
-  if (stage.name === "verify" && plan.verification.prompt) {
-    const promptPath = `${plan.workspace}/.agentic/__verification.prompt.md`;
-    await mkdir(dirname(promptPath), { recursive: true });
-    await writeFile(
-      promptPath,
-      expander.expand(plan.verification.prompt, v),
-      "utf8",
-    );
-    stageValues = { ...v, prompt: promptPath };
+  await ctx.emit?.({
+    type: "stage.started",
+    iteration: ctx.iteration,
+    stage: stage.name,
+    message: "Stage started.",
+  });
+  try {
+    if (ctx.harnessPrompt) {
+      const promptPath = join(
+        plan.workspace,
+        ".agentic",
+        "__harness.prompt.md",
+      );
+      const sourcePrompt = plan.tasks.prompt
+        ? await readTextFile(plan.tasks.prompt)
+        : "";
+      const goal = plan.goalPath ? `Goal: ${plan.goalPath}\n` : "";
+      const generated = [
+        "# Assigned task",
+        `Task ID: ${ctx.task.id}`,
+        `Task: ${ctx.task.rawLine}`,
+        goal.trimEnd(),
+        `Progress: ${plan.tasks.progress}`,
+        "Ownership: You own this assigned task. Do not select, reorder, or mutate the task queue; implement the assignment and leave verification to the workflow.",
+        "",
+        sourcePrompt,
+      ]
+        .filter((line, index) => index !== 3 || line.length > 0)
+        .join("\n");
+      await mkdir(dirname(promptPath), { recursive: true });
+      await writeFile(promptPath, generated, "utf8");
+      stageValues = { ...v, prompt: promptPath };
+    } else if (stage.name === "verify" && plan.verification.prompt) {
+      const promptPath = join(
+        plan.workspace,
+        ".agentic",
+        "__verification.prompt.md",
+      );
+      await mkdir(dirname(promptPath), { recursive: true });
+      await writeFile(
+        promptPath,
+        expander.expand(plan.verification.prompt, v),
+        "utf8",
+      );
+      stageValues = { ...v, prompt: promptPath };
+    }
+  } catch (error) {
+    const message = `Prompt materialization failed: ${
+      error instanceof Error ? error.message : String(error)
+    }`;
+    await ctx.emit?.({
+      type: "stage.completed",
+      iteration: ctx.iteration,
+      stage: stage.name,
+      message,
+    });
+    return { success: false, message };
   }
   const env: Record<string, { value: string; secret: boolean }> = {};
   for (const file of [plan.envFilePath, stage.envFilePath]) {
@@ -77,12 +126,6 @@ export async function runStage(
       value: expander.expand(item.value, stageValues),
       secret: item.secret,
     };
-  await ctx.emit?.({
-    type: "stage.started",
-    iteration: ctx.iteration,
-    stage: stage.name,
-    message: "Stage started.",
-  });
   const result = await runner.run({
     command: expander.expand(stage.executable, stageValues),
     args: expander.expandArguments(stage, stageValues),
@@ -190,6 +233,7 @@ export function lowerSteps(
         runner: (ctx as RuntimeContext).runner,
         expander,
         plan,
+        harnessPrompt: role === "harness",
       } as RuntimeContext),
   });
   const steps = plan.preAgent.map((stage) => make(stage, "pre"));
@@ -206,10 +250,7 @@ export function lowerSteps(
     const runVerify = verifyStep.run;
     verifyStep.run = async (ctx) => {
       const result = await runVerify(ctx);
-      if (
-        result.success &&
-        (await source.isTaskUnchecked(ctx.task))
-      )
+      if (result.success && (await source.isTaskUnchecked(ctx.task)))
         return {
           ...result,
           success: false,

@@ -23,9 +23,10 @@ const failureOutcome = (
   status: canceled ? "canceled" : "processFailure",
   message: canceled
     ? "Canceled."
-    : failure.result.process?.timedOut
-      ? "Process timed out."
-      : `Process exited with code ${failure.result.process?.exitCode ?? null}.`,
+    : (failure.result.message ??
+      (failure.result.process?.timedOut
+        ? "Process timed out."
+        : `Process exited with code ${failure.result.process?.exitCode ?? null}.`)),
   lastFailure: failure,
 });
 
