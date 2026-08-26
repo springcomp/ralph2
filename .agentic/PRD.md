@@ -1,1 +1,2 @@
 - [x] TASK-001 - Add optional seedTask continuation configuration (ref: `TASK-001.md`)
+- [x] TASK-002 - Seed an initial generated goal on the first pull (ref: `TASK-002.md`)

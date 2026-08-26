@@ -329,6 +329,65 @@ describe("work-source lowering", () => {
     );
   });
 
+  it("seeds an empty PRD only on the initial pull", async () => {
+    const seeded = source();
+    const getTask = seeded.getFirstUncheckedTask as ReturnType<typeof vi.fn>;
+    getTask
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(task)
+      .mockResolvedValueOnce(null);
+    const schedule = seeded.scheduleTask as ReturnType<typeof vi.fn>;
+    const workflow = plan("C:\\workspace");
+    const generated = new GeneratorWorkSource(
+      new PrdSource(seeded, "prd"),
+      stage("producer"),
+      { kind: "done" },
+      "next {TASK}",
+      seeded,
+      workflow,
+      defaultExtensionRegistry,
+      "- [ ] GOAL-{ITERATION:000} - Seed {TASK}",
+    );
+
+    expect(await generated.pull(1)).toBe(task);
+    expect(schedule).toHaveBeenCalledOnce();
+    expect(schedule).toHaveBeenCalledWith(
+      "C:\\workspace\\PRD.md",
+      "- [ ] GOAL-{ITERATION:000} - Seed {TASK}",
+    );
+    expect(await generated.pull(2)).toBeNull();
+    expect(schedule).toHaveBeenCalledOnce();
+  });
+
+  it("does not seed a non-empty or unconfigured initial PRD", async () => {
+    const nonEmpty = source();
+    const nonEmptyGenerated = new GeneratorWorkSource(
+      new PrdSource(nonEmpty, "prd"),
+      stage("producer"),
+      { kind: "done" },
+      "next",
+      nonEmpty,
+      plan("C:\\workspace"),
+      defaultExtensionRegistry,
+      "seed",
+    );
+    expect(await nonEmptyGenerated.pull(1)).toBe(task);
+    expect(nonEmpty.scheduleTask).not.toHaveBeenCalled();
+
+    const empty = source({ getFirstUncheckedTask: vi.fn(async () => null) });
+    const unconfigured = new GeneratorWorkSource(
+      new PrdSource(empty, "prd"),
+      stage("producer"),
+      { kind: "done" },
+      "next",
+      empty,
+      plan("C:\\workspace"),
+      defaultExtensionRegistry,
+    );
+    expect(await unconfigured.pull(1)).toBeNull();
+    expect(empty.scheduleTask).not.toHaveBeenCalled();
+  });
+
   it("waits on triggers and reports missing registrations", async () => {
     const inner = {
       pull: vi.fn(async (_iteration: number): Promise<Task | null> => null),

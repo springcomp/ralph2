@@ -102,6 +102,7 @@ export const generatedGoalContinuationLowering: ContinuationLowering = {
       ctx.source,
       ctx.plan,
       ctx.extensions,
+      ctx.plan.continuation.seedTask,
     );
   },
 };

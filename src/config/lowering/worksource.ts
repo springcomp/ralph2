@@ -59,8 +59,17 @@ export class GeneratorWorkSource implements WorkSource {
     private readonly source: TaskSource,
     private readonly plan: WorkflowPlan,
     private readonly extensions: ExtensionRegistry,
+    private readonly seedTask?: string,
   ) {}
-  pull(iteration: number): Promise<Task | null> {
+  private initialPullCompleted = false;
+
+  async pull(iteration: number): Promise<Task | null> {
+    const task = await this.base.pull(iteration);
+    if (this.initialPullCompleted || iteration !== 1) return task;
+    this.initialPullCompleted = true;
+    if (task || this.seedTask === undefined) return task;
+
+    await this.source.scheduleTask(this.plan.tasks.prd, this.seedTask);
     return this.base.pull(iteration);
   }
   async afterTask(ctx: CoreContext): Promise<void> {
