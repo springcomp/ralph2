@@ -49,6 +49,8 @@ export interface WorkSource {
   readonly completionStatus?: "complete" | "blocked";
   /** Message surfaced by the engine when `completionStatus` is `"blocked"`. */
   readonly blockedMessage?: string;
+  /** Rewinds any internal exhaustion cursor so a trigger-driven retry can re-check drained sub-sources. */
+  reset?(): void;
 }
 
 export interface Guard {

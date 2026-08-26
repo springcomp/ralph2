@@ -61,6 +61,24 @@ describe("extension registry - built-in templates", () => {
     expect(blueprint?.files.has("BLUEPRINT.md")).toBe(true);
   });
 
+  it("blueprint template owns the taskAppears trigger", () => {
+    const blueprint = defaultExtensionRegistry.template("blueprint");
+    expect(blueprint?.triggers?.map((trigger) => trigger.name)).toContain(
+      "taskAppears",
+    );
+    expect(defaultExtensionRegistry.trigger("taskAppears")).toBeDefined();
+    expect(defaultExtensionRegistry.template("goal")?.triggers).toBeUndefined();
+  });
+
+  it("blueprint template configures a taskAppears trigger watching BLUEPRINT.md", () => {
+    const yaml =
+      defaultExtensionRegistry.template("blueprint")?.files.get("ralph.yaml") ??
+      "";
+    expect(yaml).toContain("kind: taskAppears");
+    expect(yaml).toContain("source: .agentic/BLUEPRINT.md");
+    expect(yaml).toContain("pollInterval: 60s");
+  });
+
   it("exposes goal in templates collection", () => {
     const names = defaultExtensionRegistry.templates.map((t) => t.name);
     expect(names).toContain("goal");

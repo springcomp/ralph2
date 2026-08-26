@@ -19,7 +19,10 @@ import {
 import { FakeProcessRunner } from "../../src/core/fake-process-runner.js";
 import type { Task } from "../../src/core/task.js";
 import type { TaskSource } from "../../src/core/task.js";
-import { createExtensionRegistry } from "../../src/extensions/registry.js";
+import {
+  createExtensionRegistry,
+  defaultExtensionRegistry,
+} from "../../src/extensions/registry.js";
 import type { ExtensionEvent } from "../../src/extensions/types.js";
 
 const task: Task = {
@@ -383,6 +386,61 @@ describe("work-source lowering", () => {
     expect(lowerWorkSource(workflow, source(), registry)).toBeInstanceOf(
       TriggerWorkSource,
     );
+  });
+
+  it("resets a chained work source so a retry re-checks drained sub-sources", async () => {
+    let hasTask = false;
+    const second = source({
+      getFirstUncheckedTask: vi.fn(async () => (hasTask ? task : null)),
+    });
+    const chained = new ChainedWorkSource([
+      new PrdSource(source({ getFirstUncheckedTask: vi.fn(async () => null) }), "prd"),
+      new PrdSource(second, "prd"),
+    ]);
+    expect(await chained.pull(1)).toBeNull();
+    hasTask = true;
+    expect(await chained.pull(1)).toBeNull();
+    chained.reset();
+    expect(await chained.pull(1)).toBe(task);
+  });
+
+  it("blueprint continuation resumes once taskAppears detects a task appended to BLUEPRINT.md", async () => {
+    const prdPath = join("C:\\workspace", "PRD.md");
+    const blueprintPath = join("C:\\workspace", "BLUEPRINT.md");
+    let prdHasTask = false;
+    let blueprintHasNewTask = false;
+    const taskSource = source({
+      getFirstUncheckedTask: vi.fn(async (path?: string) => {
+        if (path === prdPath) return prdHasTask ? task : null;
+        if (path === blueprintPath) return blueprintHasNewTask ? task : null;
+        return null;
+      }),
+      seedBlueprintTask: vi.fn(async () => {
+        if (blueprintHasNewTask) {
+          prdHasTask = true;
+          blueprintHasNewTask = false;
+        }
+        return null;
+      }),
+    });
+    const workflow = plan("C:\\workspace", {
+      tasks: { prd: prdPath, progress: "", prompt: "", completionSignal: "" },
+      continuation: {
+        kind: "blueprint",
+        source: blueprintPath,
+        seedPrdFromSource: true,
+        completeWhenSourceExhausted: true,
+      },
+      trigger: { kind: "taskAppears", source: blueprintPath, pollIntervalMs: 5 },
+    });
+    const lowered = lowerWorkSource(workflow, taskSource, defaultExtensionRegistry);
+    expect(lowered).toBeInstanceOf(TriggerWorkSource);
+
+    setTimeout(() => {
+      blueprintHasNewTask = true;
+    }, 20);
+
+    expect(await lowered.pull(1)).toBe(task);
   });
 
   it("lowers compileCore guards and status", async () => {

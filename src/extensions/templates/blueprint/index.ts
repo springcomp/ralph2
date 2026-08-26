@@ -1,10 +1,11 @@
 import {
   BlueprintRefill,
   ChainedWorkSource,
-} from "../../config/lowering/worksource.js";
-import type { TemplateRegistration } from "../registry.js";
-import type { ContinuationLowering } from "../types.js";
-import { goalTemplateRegistration } from "./goal.js";
+} from "../../../config/lowering/worksource.js";
+import type { TemplateRegistration } from "../../registry.js";
+import type { ContinuationLowering } from "../../types.js";
+import { goalTemplateRegistration } from "../goal.js";
+import { taskAppearsTrigger } from "./task-appears.js";
 
 const blueprintYaml = `schemaVersion: 1
 
@@ -60,6 +61,11 @@ continuation:
   source: .agentic/BLUEPRINT.md
   seedPrdFromSource: true
   completeWhenSourceExhausted: true
+
+trigger:
+  kind: taskAppears
+  source: .agentic/BLUEPRINT.md
+  pollInterval: 60s
 `;
 
 const files = new Map(goalTemplateRegistration.files);
@@ -170,5 +176,6 @@ export const blueprintContinuationLowering: ContinuationLowering = {
 export const blueprintTemplateRegistration: TemplateRegistration = {
   name: "blueprint",
   files,
+  triggers: [taskAppearsTrigger],
   continuationLowerings: [blueprintContinuationLowering],
 };

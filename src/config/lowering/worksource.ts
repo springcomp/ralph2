@@ -43,6 +43,9 @@ export class ChainedWorkSource implements WorkSource {
     }
     return null;
   }
+  reset(): void {
+    this.index = 0;
+  }
 }
 
 export class GeneratorWorkSource implements WorkSource {
@@ -115,7 +118,9 @@ export class TriggerWorkSource implements WorkSource {
       signal: undefined,
       emit: async () => undefined,
     });
-    return signal ? this.inner.pull(iteration) : null;
+    if (!signal) return null;
+    this.inner.reset?.();
+    return this.inner.pull(iteration);
   }
 }
 

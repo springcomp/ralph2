@@ -1,4 +1,4 @@
-import type { TriggerRegistration } from "../registry.js";
+import type { TriggerRegistration } from "../../registry.js";
 
 const delay = (ms: number, signal?: AbortSignal): Promise<void> =>
   new Promise((resolve) => {

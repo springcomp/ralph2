@@ -76,9 +76,8 @@ import { repeatedFailureSignatureCircuitBreaker } from "./circuit-breakers/repea
 import { acceptedExitCodePredicate } from "./predicates/accepted-exit-code.js";
 import { fileExistsPredicate } from "./predicates/file-exists.js";
 import { fileMissingPredicate } from "./predicates/file-missing.js";
-import { blueprintTemplateRegistration } from "./templates/blueprint.js";
+import { blueprintTemplateRegistration } from "./templates/blueprint/index.js";
 import { goalTemplateRegistration } from "./templates/goal.js";
-import { taskAppearsTrigger } from "./triggers/task-appears.js";
 import type {
   CircuitBreakerLowering,
   ContinuationLowering,
@@ -97,8 +96,6 @@ const builtinTemplates: readonly TemplateRegistration[] = [
   goalTemplateRegistration,
   blueprintTemplateRegistration,
 ];
-
-const builtinTriggers: readonly TriggerRegistration[] = [taskAppearsTrigger];
 
 const builtinCircuitBreakers: readonly CircuitBreakerRegistration[] = [
   noProgressCircuitBreaker,
@@ -196,7 +193,6 @@ export function createExtensionRegistry(
     ...(extra.producers ?? []),
   ];
   const registeredTriggers = [
-    ...builtinTriggers,
     ...registeredTemplates.flatMap((t) => t.triggers ?? []),
     ...(extra.triggers ?? []),
   ];
