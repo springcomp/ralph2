@@ -45,13 +45,13 @@ properties:
   tasks:
     type: object
     required:
-      - prd
+      - queue
       - progress
       - prompt
     properties:
       format:
         type: string
-      prd:
+      queue:
         type: string
         minLength: 1
       progress:
@@ -203,7 +203,7 @@ $defs:
                 - TASK_LINE
                 - ROOT
                 - PROMPT
-                - PRD
+                - QUEUE
                 - PROGRESS
                 - ITERATION
                 - WORKSPACE
@@ -267,7 +267,7 @@ $defs:
       - TASK_LINE
       - ROOT
       - PROMPT
-      - PRD
+      - QUEUE
       - PROGRESS
       - ITERATION
       - ITERATION:000
@@ -280,4 +280,3 @@ $defs:
       - fileExists
       - fileMissing
       - acceptedExitCode
-

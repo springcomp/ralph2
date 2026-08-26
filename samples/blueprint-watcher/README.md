@@ -1,6 +1,9 @@
 # Blueprint watcher sample
 
-This sample waits for unchecked tasks appended to `BLUEPRINT.md`. Initialize it into a workspace with `ralph init --template blueprint`, or copy these files into `.agentic/`, then run:
+This sample waits for unchecked tasks appended to the human-authored
+`BLUEPRINT.md`. Ralph refills the execution `queue.md` from that source.
+Initialize it with `ralph init --template blueprint`, or copy these files into
+`.agentic/`, then run:
 
 ```bash
 ralph run --config .agentic/ralph.yaml
@@ -9,103 +12,5 @@ ralph run --config .agentic/ralph.yaml
 Append a task while the workflow is waiting:
 
 ```bash
-printf [n -# Blueprint watcher sample
-
-This sample waits for unchecked tasks appended to `BLUEPRINT.md`. Initialize it into a workspace with `ralph init --template blueprint`, or copy these files into `.agentic/`, then run:
-
-```bash
-ralph run --config .agentic/ralph.yaml
+printf "%s\n" "- [ ] TASK-002 - Handle an added task while watching" >> .agentic/BLUEPRINT.md
 ```
-
-Append a task while the workflow is waiting:
-
-```bash
-printf ]n -# Blueprint watcher sample
-
-This sample waits for unchecked tasks appended to `BLUEPRINT.md`. Initialize it into a workspace with `ralph init --template blueprint`, or copy these files into `.agentic/`, then run:
-
-```bash
-ralph run --config .agentic/ralph.yaml
-```
-
-Append a task while the workflow is waiting:
-
-```bash
-printf TASK-002n -# Blueprint watcher sample
-
-This sample waits for unchecked tasks appended to `BLUEPRINT.md`. Initialize it into a workspace with `ralph init --template blueprint`, or copy these files into `.agentic/`, then run:
-
-```bash
-ralph run --config .agentic/ralph.yaml
-```
-
-Append a task while the workflow is waiting:
-
-```bash
-printf -n -# Blueprint watcher sample
-
-This sample waits for unchecked tasks appended to `BLUEPRINT.md`. Initialize it into a workspace with `ralph init --template blueprint`, or copy these files into `.agentic/`, then run:
-
-```bash
-ralph run --config .agentic/ralph.yaml
-```
-
-Append a task while the workflow is waiting:
-
-```bash
-printf Handlen -# Blueprint watcher sample
-
-This sample waits for unchecked tasks appended to `BLUEPRINT.md`. Initialize it into a workspace with `ralph init --template blueprint`, or copy these files into `.agentic/`, then run:
-
-```bash
-ralph run --config .agentic/ralph.yaml
-```
-
-Append a task while the workflow is waiting:
-
-```bash
-printf an -# Blueprint watcher sample
-
-This sample waits for unchecked tasks appended to `BLUEPRINT.md`. Initialize it into a workspace with `ralph init --template blueprint`, or copy these files into `.agentic/`, then run:
-
-```bash
-ralph run --config .agentic/ralph.yaml
-```
-
-Append a task while the workflow is waiting:
-
-```bash
-printf taskn -# Blueprint watcher sample
-
-This sample waits for unchecked tasks appended to `BLUEPRINT.md`. Initialize it into a workspace with `ralph init --template blueprint`, or copy these files into `.agentic/`, then run:
-
-```bash
-ralph run --config .agentic/ralph.yaml
-```
-
-Append a task while the workflow is waiting:
-
-```bash
-printf addedn -# Blueprint watcher sample
-
-This sample waits for unchecked tasks appended to `BLUEPRINT.md`. Initialize it into a workspace with `ralph init --template blueprint`, or copy these files into `.agentic/`, then run:
-
-```bash
-ralph run --config .agentic/ralph.yaml
-```
-
-Append a task while the workflow is waiting:
-
-```bash
-printf whilen -# Blueprint watcher sample
-
-This sample waits for unchecked tasks appended to `BLUEPRINT.md`. Initialize it into a workspace with `ralph init --template blueprint`, or copy these files into `.agentic/`, then run:
-
-```bash
-ralph run --config .agentic/ralph.yaml
-```
-
-Append a task while the workflow is waiting:
-
-```bash
-printf watching >> .agentic/BLUEPRINT.md\n```\nn -

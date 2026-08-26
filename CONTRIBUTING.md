@@ -47,7 +47,7 @@ pnpm run seed:bootstrap
 
 ### 4. Schedule New Work via Blueprint
 
-Add new tasks to `.agentic/BLUEPRINT.md`:
+Add human-authored tasks to `.agentic/BLUEPRINT.md`:
 
 ```bash
 echo "- [ ] TASK-001 - Create a simple `index.js` script that prints "hello, world!" (model: \`gemini-3.7-flash\`)" >> .agentic/BLUEPRINT.md
@@ -63,11 +63,11 @@ node bootstrap/ralph.js run --config .agentic/ralph.yaml
 
 Ralph will:
 
-1. Seed the task from `BLUEPRINT.md` into `PRD.md`.
+1. Seed the task from `BLUEPRINT.md` into Ralph's `queue.md`.
 2. Invoke the agent harness with a fresh context window.
 3. Run deterministic verification (`build.js`, `test.js`, coverage comparison).
 4. Auto-schedule `FIX-xxx` tasks if any check fails.
-5. Advance to the next task upon successful completion.
+5. Advance to the next task upon successful completion. Blueprint agents check completed queue tasks; goal workflows leave queue state and completion to Ralph's engine.
 
 ---
 

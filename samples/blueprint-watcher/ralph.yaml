@@ -5,7 +5,7 @@ maxIterations: 100
 
 tasks:
   format: markdown
-  prd: .agentic/PRD.md
+  queue: .agentic/queue.md
   progress: .agentic/progress.txt
   prompt: .agentic/ralph.prompt.md
   completionSignal: <ralph>COMPLETE</ralph>
@@ -25,7 +25,7 @@ harnesses:
       - --model
       - "{MODEL}"
       - -p
-      - "Follow instructions from {PROMPT}"
+      - "Follow instructions from {PROMPT} queue={QUEUE} progress={PROGRESS}"
     conditionalArguments:
       - whenSet: AGENT
         arguments:

@@ -1,19 +1,19 @@
 # Ralph Goal Workflow
 
-You are an AI coding agent executing a goal-oriented workflow in Python.
+You are an AI coding agent executing an assigned task toward the user-owned goal.
 Each iteration provides a fresh context window.
 
 ## Working Files
 
-- `.agentic/PRD.md` (PRD): Contains current active tasks.
+- `.agentic/GOAL.md`: User-owned outcome, constraints, and acceptance criteria.
+- `.agentic/queue.md`: Ralph-owned execution state. Do not select, reorder, or check tasks.
 - `.agentic/progress.txt` (PROGRESS): Persistent context and learnings across iterations.
 - `.agentic/__remaining_failures.log`: Goal error log produced by verification.
 
 ## Instructions
 
-1. Pick the first unchecked task (`- [ ]`) from `.agentic/PRD.md`.
-2. Review `.agentic/progress.txt` and `.agentic/__remaining_failures.log` for failure details.
-3. Fix the code to resolve the failures reported in the log.
-4. Run python tests locally to verify your changes.
-5. Mark the task as done (`- [x]`) in `.agentic/PRD.md` and record any findings in `progress.txt`.
-6. Once all failures are eliminated and `.agentic/__remaining_failures.log` is absent, the goal completes.
+1. Work only on the assigned task shown above.
+2. Read `.agentic/GOAL.md`, `.agentic/progress.txt`, and `.agentic/__remaining_failures.log` when present.
+3. Implement and verify the change, recording findings in `progress.txt`.
+4. Do not mutate queue task checkboxes; Ralph owns queue state and completion.
+5. Once all failures are eliminated and `.agentic/__remaining_failures.log` is absent, the goal completes.

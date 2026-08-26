@@ -24,7 +24,7 @@ Configuration keeps the familiar vocabulary:
 ```yaml
 workspace: .
 tasks:
-  prd: .agentic/PRD.md
+  queue: .agentic/queue.md
   progress: .agentic/progress.txt
   prompt: .agentic/ralph.prompt.md
 defaults:
@@ -135,10 +135,15 @@ compatible with the surface contract.
 
 ### Work sources and triggers
 
-`PrdSource` reads the first unchecked Markdown task. `BlueprintRefill` seeds
+`PrdSource` reads the first unchecked Markdown task from the canonical queue.
+The legacy `tasks.prd` and `{PRD}` names remain supported as deprecated queue
+aliases. `BlueprintRefill` seeds
 another task when the PRD is empty, while `ChainedWorkSource` composes sources.
 `GeneratorWorkSource` runs a producer and evaluates a goal predicate after each
-task. `TriggerWorkSource` waits only after the composed inner source is
+task. Goal intent is user-owned in `GOAL.md`, while the queue is Ralph-owned
+execution state. Goal completion is engine-owned; blueprint task checking remains
+agent-owned. The selected task is delivered through a generated assignment prompt.
+`TriggerWorkSource` waits only after the composed inner source is
 exhausted; a trigger signal resumes the loop, `null` completes, and cancellation
 ends the run as canceled.
 

@@ -104,6 +104,7 @@ Two hard collapses:
 
 - **Two completion mechanisms → one.** `goal.completeWhen` and blueprint "exhausted"
   both become `WorkSource.pull()` returning `null`. Core has one completion concept.
+  Goal intent belongs in user-authored `GOAL.md`; the queue is Ralph-owned state.
 - **Buckets → one flat list.** The only real difference between buckets is default
   Policy, chosen at compile time, invisible to core. `role` survives for events only.
 
@@ -158,6 +159,10 @@ interface ContinuationLowering {
 - Rewrite `DESIGN.md` around the three layers (surface / lowering / core) — separate
   approved outline.
 - Full suite + coverage + biome green.
+
+Blueprint is an intentional human-authored queue workflow: humans add tasks to
+`BLUEPRINT.md`, Ralph refills the canonical queue, and agents check completed queue
+items. Goal workflows use a generated assignment prompt and engine-owned completion.
 
 ## Relevant files
 

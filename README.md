@@ -10,6 +10,7 @@ Ralph automates AI coding harnesses (like Pi or Copilot) by running them in an i
 
 - **Self-Healing Loop**: If deterministic checks fail, Ralph immediately schedules remediation tasks (`FIX-xxx`) for the next iteration.
 - **Blueprint & Goal Workflows**: Supports step-by-step blueprint progression or goal-driven completion predicates (`fileExists`, `fileMissing`, `acceptedExitCode`).
+- Goal workflows keep user intent in `GOAL.md` and Ralph execution state in `queue.md`; blueprint workflows use a human-authored `BLUEPRINT.md` to refill that queue.
 - **Safe Process Execution**: Pure `argv` array dispatch prevents shell injection and quoting anomalies. Full process-tree termination on timeouts and cancellation.
 - **State Integrity**: Workspace and atomic file locks prevent race conditions and corruption across iterations.
 - **Model & Agent Fallback Hierarchy**: Resolves models and agents dynamically (`Task Metadata > CLI Options > YAML Defaults`).
@@ -45,7 +46,7 @@ ralph init --working-directory ~/my --template blueprint
 ### 4. Add new blueprint work
 
 ```bash
-echo "- [ ] TASK-001 - Create a simple node index.js script that prints \"hello, world!\"" > ~/my/.agentic/BLUEPRINT.md
+echo "- [ ] TASK-001 - Create a simple node index.js script that prints \"hello, world!\"" >> ~/my/.agentic/BLUEPRINT.md
 ```
 
 ### 5. Cook!
@@ -53,6 +54,8 @@ echo "- [ ] TASK-001 - Create a simple node index.js script that prints \"hello,
 ```bash
 ralph run --config ~/my/.agentic/ralph.yaml
 ```
+
+`tasks.queue` is canonical. The legacy `tasks.prd` setting and `{PRD}` placeholder remain supported as deprecated aliases for the queue. Goal completion is engine-owned; blueprint task checking remains agent-owned. Ralph delivers the selected task through the generated assignment prompt.
 
 Environment configuration supports root-level `envFile` and `environment`, plus the same
 properties on command stages. Precedence is global file, global inline, stage file, then
