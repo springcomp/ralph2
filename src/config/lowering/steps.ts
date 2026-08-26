@@ -40,6 +40,8 @@ const values = (ctx: CoreContext): PlaceholderContext => {
     taskLine: task.rawLine,
     root: typeof ctx.root === "string" ? ctx.root : `${task.typ}-${task.num}`,
     prompt: typeof ctx.prompt === "string" ? ctx.prompt : null,
+    queue: typeof ctx.queue === "string" ? ctx.queue : null,
+    goal: typeof ctx.goal === "string" ? ctx.goal : null,
     prd: typeof ctx.prd === "string" ? ctx.prd : null,
     progress: typeof ctx.progress === "string" ? ctx.progress : null,
     iteration: ctx.iteration,

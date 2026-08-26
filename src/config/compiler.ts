@@ -399,6 +399,8 @@ export function compileCore(
     taskLine: ctx.task.rawLine,
     root: `${ctx.task.typ}-${ctx.task.num}`,
     prompt: plan.tasks.prompt,
+    queue: plan.tasks.queue ?? plan.tasks.prd,
+    goal: plan.goalPath,
     prd: plan.tasks.queue ?? plan.tasks.prd,
     progress: plan.tasks.progress,
     iteration: ctx.iteration,

@@ -163,6 +163,28 @@ describe("validateWorkflow", () => {
     expect(validateWorkflow(doc)).toHaveLength(0);
   });
 
+  it("accepts queue and goal placeholders in regular and conditional arguments", () => {
+    const doc = {
+      ...validBaseDoc,
+      goal: ".agentic/GOAL.md",
+      harnesses: {
+        pi: {
+          ...validBaseDoc.harnesses.pi,
+          arguments: [
+            "--queue",
+            "{QUEUE}",
+            "--goal",
+            "{GOAL}",
+            "--prd",
+            "{PRD}",
+          ],
+          conditionalArguments: [{ whenSet: "QUEUE", arguments: ["{GOAL}"] }],
+        },
+      },
+    };
+    expect(validateWorkflow(doc)).toHaveLength(0);
+  });
+
   it("validates non-empty seedTask and rejects blank or non-string values", () => {
     const continuation = {
       kind: "generatedGoal",

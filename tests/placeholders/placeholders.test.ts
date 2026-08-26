@@ -14,6 +14,8 @@ const context: PlaceholderContext = {
   task: "Do work",
   taskLine: "- [ ] TASK-7 - Do work",
   prompt: "/tmp/prompt.md",
+  queue: "/tmp/queue.md",
+  goal: "/tmp/goal.md",
   prd: "/tmp/PRD.md",
   progress: "/tmp/progress.txt",
   iteration: 7,
@@ -31,6 +33,8 @@ describe("PlaceholderRegistry", () => {
       "TASK_LINE",
       "ROOT",
       "PROMPT",
+      "QUEUE",
+      "GOAL",
       "PRD",
       "PROGRESS",
       "ITERATION",
@@ -46,11 +50,11 @@ describe("PlaceholderExpander", () => {
   it("expands all values and repeated tokens", () => {
     expect(
       expander.expand(
-        "{MODEL}|{AGENT}|{TYP}|{NUM}|{TASK}|{TASK_LINE}|{PROMPT}|{PRD}|{PROGRESS}|{ITERATION}|{ITERATION:000}|{WORKSPACE}|{NUM}",
+        "{MODEL}|{AGENT}|{TYP}|{NUM}|{TASK}|{TASK_LINE}|{PROMPT}|{QUEUE}|{GOAL}|{PRD}|{PROGRESS}|{ITERATION}|{ITERATION:000}|{WORKSPACE}|{NUM}",
         context,
       ),
     ).toBe(
-      "model/x|coder|TASK|7|Do work|- [ ] TASK-7 - Do work|/tmp/prompt.md|/tmp/PRD.md|/tmp/progress.txt|7|007|/tmp/workspace|7",
+      "model/x|coder|TASK|7|Do work|- [ ] TASK-7 - Do work|/tmp/prompt.md|/tmp/queue.md|/tmp/goal.md|/tmp/queue.md|/tmp/progress.txt|7|007|/tmp/workspace|7",
     );
   });
 
@@ -58,6 +62,15 @@ describe("PlaceholderExpander", () => {
     expect(
       expander.expand("<{MODEL}><{AGENT}><{TASK}>", { iteration: 1 }),
     ).toBe("<><><>");
+  });
+
+  it("expands queue and optional goal, with PRD as a queue alias", () => {
+    expect(expander.expand("{QUEUE}|{GOAL}|{PRD}", context)).toBe(
+      "/tmp/queue.md|/tmp/goal.md|/tmp/queue.md",
+    );
+    expect(expander.expand("{QUEUE}|{GOAL}|{PRD}", { iteration: 1 })).toBe(
+      "||",
+    );
   });
 
   it("supports zero padding beyond three digits", () => {

@@ -5,17 +5,26 @@ import type { ExtensionRegistry } from "../../extensions/registry.js";
 import type { WorkflowPlan } from "../compiler.js";
 
 export class PrdSource implements WorkSource {
-  constructor(private readonly source: TaskSource) {}
+  constructor(
+    private readonly source: TaskSource,
+    /** Retained for compatibility with the pre-queue constructor shape. */
+    _legacyQueuePath?: string,
+  ) {}
   pull(): Promise<Task | null> {
     return this.source.getFirstUncheckedTask();
   }
 }
 
 export class BlueprintRefill implements WorkSource {
+  private readonly blueprintPath: string;
+
   constructor(
     private readonly source: TaskSource,
-    private readonly blueprintPath: string,
-  ) {}
+    blueprintPath: string,
+    legacyBlueprintPath?: string,
+  ) {
+    this.blueprintPath = legacyBlueprintPath ?? blueprintPath;
+  }
   async pull(): Promise<Task | null> {
     await this.source.seedBlueprintTask(this.blueprintPath);
     return this.source.getFirstUncheckedTask();

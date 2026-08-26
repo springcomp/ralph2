@@ -1,7 +1,7 @@
 # Blueprint — Goal Intent and Task Queue Separation
 
 - [x] TASK-001 - Add canonical queue, goal, and completion configuration (ref: `TASK-001.md`)
-- [ ] TASK-002 - Add queue and goal placeholders (ref: `TASK-002.md`)
+- [x] TASK-002 - Add queue and goal placeholders (ref: `TASK-002.md`)
 - [ ] TASK-003 - Implement engine-owned successful task completion (ref: `TASK-003.md`)
 - [ ] TASK-004 - Deliver selected task through generated harness prompt (ref: `TASK-004.md`)
 - [ ] TASK-005 - Split built-in templates into goal intent and queue state (ref: `TASK-005.md`)

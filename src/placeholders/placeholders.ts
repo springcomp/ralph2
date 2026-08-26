@@ -13,6 +13,9 @@ export interface PlaceholderContext {
   /** TYP-NUM of the root task in this task's remediation chain (itself when not a remediation task). */
   readonly root?: string | null;
   readonly prompt?: string | null;
+  readonly queue?: string | null;
+  readonly goal?: string | null;
+  /** Deprecated compatibility alias for queue. */
   readonly prd?: string | null;
   readonly progress?: string | null;
   readonly iteration: number;
@@ -46,7 +49,15 @@ export const PlaceholderRegistry = Object.freeze({
         "The TYP-NUM id of the root task in the current task's remediation chain.",
     },
     { name: "PROMPT", description: "The path to the agent prompt file." },
-    { name: "PRD", description: "The path to the PRD task file." },
+    { name: "QUEUE", description: "The path to the task queue file." },
+    {
+      name: "GOAL",
+      description: "The path to the optional goal-intent file.",
+    },
+    {
+      name: "PRD",
+      description: "Deprecated compatibility alias for the task queue path.",
+    },
     { name: "PROGRESS", description: "The path to the progress file." },
     {
       name: "ITERATION",
@@ -67,6 +78,8 @@ export const PlaceholderRegistry = Object.freeze({
     "TASK_LINE",
     "ROOT",
     "PROMPT",
+    "QUEUE",
+    "GOAL",
     "PRD",
     "PROGRESS",
     "ITERATION",
@@ -82,6 +95,8 @@ export const PlaceholderRegistry = Object.freeze({
     "TASK_LINE",
     "ROOT",
     "PROMPT",
+    "QUEUE",
+    "GOAL",
     "PRD",
     "PROGRESS",
     "ITERATION",
@@ -101,7 +116,9 @@ export class PlaceholderExpander {
       TASK_LINE: context.taskLine ?? "",
       ROOT: context.root ?? "",
       PROMPT: context.prompt ?? "",
-      PRD: context.prd ?? "",
+      QUEUE: context.queue ?? context.prd ?? "",
+      GOAL: context.goal ?? "",
+      PRD: context.queue ?? context.prd ?? "",
       PROGRESS: context.progress ?? "",
       ITERATION: String(context.iteration),
       "ITERATION:000": String(context.iteration).padStart(3, "0"),
