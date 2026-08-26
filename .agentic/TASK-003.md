@@ -1,28 +1,19 @@
-# TASK-003 - Update the goal template to use seedTask
+# TASK-003 — Implement engine-owned successful task completion
 
 ## Objective
+Let goal workflow commit task completion in Ralph only after all configured work and deterministic gates succeed.
 
-Make the goal template install an empty PRD and configure its initial goal through the generated-goal continuation.
-
-## Implementation steps
-
-1. Add `seedTask` to the goal continuation YAML in `src/extensions/templates/goal.ts`.
-2. Use the existing starter task as the literal default seed: `- [ ] GOAL-001 - Define first goal`.
-3. Remove the starter task from the goal template's `PRD.md` fixture, leaving the product-requirements heading and blank content.
-4. Do not put `{ITERATION}`, `{TASK}`, or other placeholders in `seedTask`.
-5. Keep the existing generated `nextTask` template for goals created after the initial task.
-6. Check whether generated/bootstrap template artifacts are committed and regenerate them if required by repository conventions.
+## Implementation
+1. Add explicit successful-task completion hook/flag to `src/core/plan.ts`.
+2. Lower `tasks.completion: engine` from compiled workflow into that core behavior in `src/config/compiler.ts` / `compileCore`.
+3. In `src/core/engine-core.ts`, after non-terminal pipeline success and successful guard evaluation, invoke `TaskSource.checkTask(ctx.task)` for engine-owned tasks.
+4. Perform state transition before `source.afterTask(ctx)` so generated-goal producer sees committed prior task state.
+5. Convert completion-write error into blocked outcome with useful message.
+6. Preserve current behavior for agent-owned workflows, including `verification.requireTaskChecked` retry/check semantics.
 
 ## Acceptance criteria
-
-- [x] Fresh goal initialization creates an empty PRD apart from its heading.
-- [x] Goal YAML contains the literal configured `seedTask`.
-- [x] The default seed task matches the current starter task text.
-- [x] Subsequent generated goals still use the existing `nextTask` expression.
-- [x] Blueprint template behavior remains unchanged unless it intentionally derives from the updated goal files.
-
-## Tests
-
-- [x] Update registry/template tests to assert the empty PRD and configured seed task.
-- [x] Verify goal and blueprint template registrations still expose required files.
-- [x] Run template-focused tests and inspect generated artifacts when applicable.
+- Engine-owned task is checked exactly once after harness and post-agent stages pass.
+- Producer/continuation runs only after successful check operation.
+- Harness/post-agent failure, terminal verification failure, cancellation, and guard block leave task unchecked.
+- Completion-write error blocks workflow rather than silently continuing.
+- Legacy/blueprint agent-owned workflow behavior does not auto-check tasks.

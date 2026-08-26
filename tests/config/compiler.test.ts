@@ -279,9 +279,9 @@ describe("compileWorkflow", () => {
     expect(
       compileWorkflow(withSeedTask, "/mock/project").continuation?.seedTask,
     ).toBe("- [ ] Seed {ITERATION:000}");
-    expect(compileWorkflow(baseDoc, "/mock/project").continuation?.seedTask).toBe(
-      undefined,
-    );
+    expect(
+      compileWorkflow(baseDoc, "/mock/project").continuation?.seedTask,
+    ).toBe(undefined);
   });
 
   it("compiles a trigger and defaults its source to the PRD path", () => {
@@ -305,6 +305,40 @@ describe("compileWorkflow", () => {
       resolve("/mock/project/work-dir/tasks/BLUEPRINT.md"),
     );
     expect(plan.trigger?.pollIntervalMs).toBe(5000);
+  });
+
+  it("compiles canonical queue configuration and goal/completion settings", () => {
+    const doc: V1WorkflowDocument = {
+      ...baseDoc,
+      goal: "GOAL.md",
+      tasks: {
+        queue: "tasks/queue.md",
+        progress: "tasks/progress.txt",
+        prompt: "tasks/prompt.md",
+        completion: "engine",
+      },
+    };
+    const plan = compileWorkflow(doc, "/mock/project");
+    expect(plan.tasks.queue).toBe(
+      resolve("/mock/project/work-dir/tasks/queue.md"),
+    );
+    expect(plan.tasks.prd).toBe(plan.tasks.queue);
+    expect(plan.goalPath).toBe(resolve("/mock/project/work-dir/GOAL.md"));
+    expect(plan.completion).toBe("engine");
+    expect(plan.tasks.completion).toBe("engine");
+  });
+
+  it("rejects queue and legacy prd paths that resolve differently", () => {
+    const doc: V1WorkflowDocument = {
+      ...baseDoc,
+      tasks: {
+        ...baseDoc.tasks,
+        queue: "tasks/queue.md",
+      },
+    };
+    expect(() => compileWorkflow(doc, "/mock/project")).toThrow(
+      /queue and prd must resolve to the same file/,
+    );
   });
 
   it("leaves trigger undefined when not configured", () => {

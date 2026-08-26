@@ -106,6 +106,7 @@ export function workflowSchema(registry: ExtensionRegistry): JsonSchema {
       envFile: { type: "string", minLength: 1 },
       environment: { type: "array", items: environmentItem },
       maxIterations: { type: "number", exclusiveMinimum: 0 },
+      goal: { type: "string", minLength: 1 },
       maxRemediationAttempts: {
         type: "number",
         minimum: 0,
@@ -113,13 +114,16 @@ export function workflowSchema(registry: ExtensionRegistry): JsonSchema {
       },
       tasks: {
         type: "object",
-        required: ["prd", "progress", "prompt"],
+        required: ["progress", "prompt"],
+        anyOf: [{ required: ["queue"] }, { required: ["prd"] }],
         properties: {
           format: { type: "string" },
+          queue: { type: "string", minLength: 1 },
           prd: { type: "string", minLength: 1 },
           progress: { type: "string", minLength: 1 },
           prompt: { type: "string", minLength: 1 },
           completionSignal: { type: "string" },
+          completion: { enum: ["agent", "engine"] },
           metadata: { type: "object" },
         },
       },

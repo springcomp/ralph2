@@ -1,30 +1,32 @@
-# TASK-001 - Add optional seedTask continuation configuration
+# TASK-001 — Add canonical queue, goal, and completion configuration
 
 ## Objective
+Make `tasks.queue` canonical while preserving compatible `tasks.prd` input, and add configuration required by separated goal intent and engine-owned task completion.
 
-Add an optional literal `seedTask` property to generated-goal continuation configuration. The property must flow through schema validation and compiler lowering without changing existing continuation behavior.
-
-## Implementation steps
-
-1. Update the workflow continuation schema in `src/config/schema.ts` (and any related v1 DTO typing in `src/config/schema-v1.ts`) to recognize `seedTask` as an optional string with `minLength: 1`.
-2. Preserve the current validation rules for `kind`, `producer`, `completeWhen`, and `nextTask`.
-3. Add `seedTask?: string` to the continuation portion of `WorkflowPlan` in `src/config/compiler.ts`.
-4. Read `continuationDto.seedTask` during compilation using the same text normalization used for `nextTask`.
-5. Ensure an omitted `seedTask` remains `undefined`, while whitespace/empty or non-string values fail validation.
-6. Do not expand placeholders in `seedTask`; it must be retained as literal task text.
-7. Keep unknown/custom continuation properties working as before.
+## Implementation
+1. Update `src/config/schema-v1.ts` DTOs:
+   - add optional `tasks.queue`;
+   - retain optional `tasks.prd` as legacy input;
+   - add optional top-level `goal` path;
+   - add optional `tasks.completion`.
+2. Update `src/config/schema.ts`:
+   - require at least one of `tasks.queue` or `tasks.prd`;
+   - permit both only when compiler can resolve them to same queue;
+   - validate `tasks.completion` as `agent` or `engine`.
+3. Update `src/config/compiler.ts` types and compilation:
+   - resolve canonical queue path from `queue`, falling back to `prd`;
+   - reject conflicting resolved queue/prd paths;
+   - compile `goal` relative to workspace as optional `goalPath`;
+   - compile completion authority, defaulting to `agent`;
+   - expose canonical queue in `TaskFileSet`; retain resolved PRD compatibility surface only where callers still require it;
+   - default trigger observation to canonical queue.
+4. Update `src/cli/index.ts` so runtime `MarkdownTaskSource` binds to canonical queue path.
+5. Rename comments/locals that describe runtime queue as PRD where no compatibility meaning remains.
 
 ## Acceptance criteria
-
-- [x] A continuation with a valid non-empty `seedTask` passes validation.
-- [x] Empty, whitespace-only, and non-string `seedTask` values are rejected with normal workflow diagnostics.
-- [x] Compiled plans expose the exact configured `seedTask` text.
-- [x] Compiled plans omit or leave `seedTask` undefined when it is not configured.
-- [x] Existing continuation configurations compile unchanged.
-- [x] `nextTask` retains its existing placeholder-capable behavior.
-
-## Tests
-
-- [x] Add compiler/schema tests for valid, omitted, empty, whitespace, and non-string `seedTask` values.
-- [x] Assert the compiled plan contains literal placeholder text if a placeholder appears in `seedTask`, proving no compile-time expansion occurs.
-- [x] Run the focused compiler tests and typecheck.
+- Queue-only workflow validates and compiles.
+- Legacy PRD-only workflow validates and compiles to same runtime queue behavior.
+- Queue plus PRD resolving to different files fails with clear diagnostic.
+- `goal` resolves against workspace.
+- Completion defaults to `agent`; `engine` compiles successfully; unsupported values fail validation.
+- CLI run binds task source to compiled queue path.

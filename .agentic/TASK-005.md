@@ -1,28 +1,26 @@
-# TASK-005 - Run verification and reconcile generated artifacts
+# TASK-005 — Split built-in templates into goal intent and queue state
 
 ## Objective
+Make built-in goal template expose user-owned outcome while treating queue as Ralph-owned execution state; migrate blueprint terminology without changing blueprint semantics.
 
-Verify the implementation across typechecking, tests, formatting, linting, and repository-generated files.
-
-## Implementation steps
-
-1. Run `pnpm typecheck` and fix type errors caused by the new continuation property or source constructor.
-2. Run focused schema, compiler, source, template, CLI, and integration tests.
-3. Run the complete `pnpm test` suite.
-4. Run `pnpm lint` and apply project formatting conventions without unrelated changes.
-5. Run `pnpm build` and the repository bootstrap/template generation command if generated artifacts are tracked or required.
-6. Inspect the final diff for accidental changes, especially to blueprint template behavior and existing continuation semantics.
-7. Manually verify a fresh goal template in a temporary workspace: empty PRD, first run seeds the literal task, and a completed initial task does not immediately create another task.
+## Implementation
+1. Rewrite `src/extensions/templates/goal.ts`:
+   - configure `tasks.queue: .agentic/queue.md`;
+   - configure `tasks.completion: engine`;
+   - configure `goal: .agentic/GOAL.md`;
+   - disable agent checkbox verification (`requireTaskChecked: false`);
+   - create `GOAL.md` template for outcome, constraints, and acceptance criteria;
+   - create queue file with Ralph-owned execution-state header;
+   - update seed task to direct first agent to goal file;
+   - update prompt to use assignment header and prohibit queue selection/reordering/checking.
+2. Update `src/extensions/templates/blueprint/index.ts`:
+   - use queue config/file names and `{QUEUE}` terminology;
+   - retain BLUEPRINT authoring, agent-owned checking, refill, and watcher behavior.
+3. Update task-appears trigger and action descriptions that call queue a PRD.
 
 ## Acceptance criteria
-
-- [ ] Typecheck passes.
-- [ ] Full test suite passes.
-- [ ] Lint/format checks pass.
-- [ ] Build and required generation steps pass.
-- [ ] No unrelated files or behavior changed.
-- [ ] Manual fresh-workspace behavior matches the requested seed-on-first-run semantics.
-
-## Evidence
-
-Record commands run and any relevant output or remaining limitations in the task completion notes or project progress file.
+- Goal init creates `GOAL.md`, `queue.md`, prompt, progress, and config; it does not create `PRD.md`.
+- Goal config uses engine completion and explicit goal path.
+- Goal instructions direct agent to assigned task/GOAL/progress and forbid queue mutation.
+- Blueprint template uses canonical queue names but still instructs agent to check completed queue tasks.
+- Blueprint source refill and watcher configuration remain functionally unchanged.

@@ -53,10 +53,13 @@ export interface StagePlan {
   resultRequired?: boolean;
 }
 export interface TaskFileSet {
+  queue?: string;
+  /** Legacy alias for queue, retained for placeholder and API compatibility. */
   prd: string;
   progress: string;
   prompt: string;
   completionSignal: string;
+  completion?: "agent" | "engine";
 }
 export interface TriggerPlan {
   kind: string;
@@ -109,6 +112,8 @@ export interface WorkflowPlan {
   ptyDefault?: boolean;
   trigger?: TriggerPlan;
   circuitBreaker?: CircuitBreakerPlan;
+  goalPath?: string;
+  completion?: "agent" | "engine";
 }
 export class WorkflowCompileError extends Error {
   constructor(readonly diagnostics: readonly Diagnostic[]) {
@@ -252,8 +257,10 @@ export function compileWorkflow(
           continuationDto.completeWhen &&
           typeof continuationDto.completeWhen === "object"
             ? (() => {
-                const completeWhenDto =
-                  continuationDto.completeWhen as Record<string, unknown>;
+                const completeWhenDto = continuationDto.completeWhen as Record<
+                  string,
+                  unknown
+                >;
                 return {
                   kind: text(completeWhenDto.kind),
                   path: path(workspace, completeWhenDto.path),
@@ -270,12 +277,22 @@ export function compileWorkflow(
             : undefined,
       }
     : undefined;
-  const prdPath = path(workspace, tasks.prd) ?? "";
+  const queuePath = path(workspace, tasks.queue);
+  const prdPath = path(workspace, tasks.prd);
+  if (queuePath && prdPath && queuePath !== prdPath) {
+    throw new WorkflowCompileError([
+      {
+        path: "tasks",
+        message: "queue and prd must resolve to the same file",
+      },
+    ]);
+  }
+  const canonicalQueuePath = queuePath ?? prdPath ?? "";
   const triggerDto = document.trigger;
   const trigger: TriggerPlan | undefined = triggerDto
     ? {
         kind: text(triggerDto.kind),
-        source: path(workspace, triggerDto.source) ?? prdPath,
+        source: path(workspace, triggerDto.source) ?? canonicalQueuePath,
         pollIntervalMs:
           triggerDto.pollInterval === undefined ||
           triggerDto.pollInterval === null ||
@@ -311,10 +328,12 @@ export function compileWorkflow(
         ? document.maxRemediationAttempts
         : 2),
     tasks: {
-      prd: prdPath,
+      queue: canonicalQueuePath,
+      prd: canonicalQueuePath,
       progress: path(workspace, tasks.progress) ?? "",
       prompt: path(workspace, tasks.prompt) ?? "",
       completionSignal: text(tasks.completionSignal),
+      completion: tasks.completion === "engine" ? "engine" : "agent",
     },
     harnesses,
     defaultHarness: options.harness ?? text(defaults.harness),
@@ -355,6 +374,8 @@ export function compileWorkflow(
     ptyDefault: options.pty,
     trigger,
     circuitBreaker,
+    goalPath: path(workspace, document.goal),
+    completion: tasks.completion === "engine" ? "engine" : "agent",
   };
 }
 
@@ -378,7 +399,7 @@ export function compileCore(
     taskLine: ctx.task.rawLine,
     root: `${ctx.task.typ}-${ctx.task.num}`,
     prompt: plan.tasks.prompt,
-    prd: plan.tasks.prd,
+    prd: plan.tasks.queue ?? plan.tasks.prd,
     progress: plan.tasks.progress,
     iteration: ctx.iteration,
     workspace: plan.workspace,

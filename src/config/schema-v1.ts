@@ -5,6 +5,7 @@ export interface V1WorkflowDocument {
   environment?: (EnvironmentVariableDto | string)[] | null;
   maxIterations?: unknown;
   maxRemediationAttempts?: unknown;
+  goal?: unknown;
   tasks?: TaskFilesDto | null;
   defaults?: DefaultsDto | null;
   harnesses?: Record<string, CommandDto> | null;
@@ -17,10 +18,12 @@ export interface V1WorkflowDocument {
 }
 export interface TaskFilesDto {
   format?: unknown;
+  queue?: unknown;
   prd?: unknown;
   progress?: unknown;
   prompt?: unknown;
   completionSignal?: unknown;
+  completion?: unknown;
   metadata?: { model?: unknown; agent?: unknown } | null;
 }
 export interface DefaultsDto {

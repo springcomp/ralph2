@@ -115,8 +115,8 @@ export function createProgram(
   addWorkflowOptions(program.command("run")).action(
     async (options: CliOptions) => {
       try {
-        // Compile once to resolve the workspace and PRD path before creating
-        // the permanently PRD-bound task source.
+        // Compile once to resolve the workspace and canonical queue path before
+        // creating the permanently queue-bound task source.
         const configPath = resolve(options.config);
         const document = parseWorkflowYaml(await readTextFile(configPath));
         const preliminary = compileWorkflow(
@@ -125,7 +125,9 @@ export function createProgram(
           options,
           extensions,
         );
-        const source = new MarkdownTaskSource(preliminary.tasks.prd);
+        const source = new MarkdownTaskSource(
+          preliminary.tasks.queue ?? preliminary.tasks.prd,
+        );
         const plan = await readCoreConfig(
           configPath,
           options,
