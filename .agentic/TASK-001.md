@@ -1,35 +1,30 @@
-# TASK-001 - Phase 0: Baseline safety net
+# TASK-001 - Add optional seedTask continuation configuration
 
-## Context
+## Objective
 
-Ref: [plans/CORE_LOOP.md](../plans/CORE_LOOP.md) — Phase 0.
-
-Before touching `WorkflowEngine`, lock down current behavior with a green baseline and
-close any coverage gaps on the paths the refactor will move (verification retries,
-remediation scheduling, trigger idle/fire/resume, circuit-breaker trip).
+Add an optional literal `seedTask` property to generated-goal continuation configuration. The property must flow through schema validation and compiler lowering without changing existing continuation behavior.
 
 ## Implementation steps
 
-1. Run `pnpm vitest run` and `pnpm biome check`; record the baseline as green (or fix
-   pre-existing failures first, out of scope for this refactor otherwise).
-2. Audit existing coverage in [tests/core/engine.test.ts](../tests/core/engine.test.ts),
-   [tests/core/trigger.test.ts](../tests/core/trigger.test.ts),
-   [tests/core/circuit-breaker.test.ts](../tests/core/circuit-breaker.test.ts), and
-   [tests/integration](../tests/integration) for:
-   - Verification retry: succeeds within retry budget, and exhausts retries → `blocked`.
-   - Remediation (`onFailure.action` + `maxRemediationAttempts`): depth cap is enforced
-     and emits the expected events/exit code when exceeded.
-   - Trigger: idle → fires → resumes pipeline, and idle → aborted → `canceled`.
-   - Circuit breaker: trips to `blocked` after N repeated identical signatures.
-3. Add any missing "golden" tests above as new test cases (do not change production
-   code in this task). Capture exact event sequences / exit codes emitted today so they
-   can be diffed against post-refactor behavior.
+1. Update the workflow continuation schema in `src/config/schema.ts` (and any related v1 DTO typing in `src/config/schema-v1.ts`) to recognize `seedTask` as an optional string with `minLength: 1`.
+2. Preserve the current validation rules for `kind`, `producer`, `completeWhen`, and `nextTask`.
+3. Add `seedTask?: string` to the continuation portion of `WorkflowPlan` in `src/config/compiler.ts`.
+4. Read `continuationDto.seedTask` during compilation using the same text normalization used for `nextTask`.
+5. Ensure an omitted `seedTask` remains `undefined`, while whitespace/empty or non-string values fail validation.
+6. Do not expand placeholders in `seedTask`; it must be retained as literal task text.
+7. Keep unknown/custom continuation properties working as before.
 
 ## Acceptance criteria
 
-- [ ] `pnpm vitest run` is green, including newly added golden tests.
-- [ ] `pnpm biome check` is clean.
-- [ ] Golden tests exist and pass for: verification retry success, verification retry
-      exhaustion, remediation depth cap, trigger idle→fire→resume, trigger
-      idle→abort→canceled, circuit-breaker trip after N iterations.
-- [ ] No production code under `src/` is modified in this task.
+- [x] A continuation with a valid non-empty `seedTask` passes validation.
+- [x] Empty, whitespace-only, and non-string `seedTask` values are rejected with normal workflow diagnostics.
+- [x] Compiled plans expose the exact configured `seedTask` text.
+- [x] Compiled plans omit or leave `seedTask` undefined when it is not configured.
+- [x] Existing continuation configurations compile unchanged.
+- [x] `nextTask` retains its existing placeholder-capable behavior.
+
+## Tests
+
+- [x] Add compiler/schema tests for valid, omitted, empty, whitespace, and non-string `seedTask` values.
+- [x] Assert the compiled plan contains literal placeholder text if a placeholder appears in `seedTask`, proving no compile-time expansion occurs.
+- [x] Run the focused compiler tests and typecheck.

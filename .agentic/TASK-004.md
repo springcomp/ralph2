@@ -1,45 +1,29 @@
-# TASK-004 - Phase 3: New tiny engine over CorePlan
+# TASK-004 - Add end-to-end empty-PRD regression coverage
 
-## Context
+## Objective
 
-Ref: [plans/CORE_LOOP.md](../plans/CORE_LOOP.md) — Phase 3 and "Target engine loop".
-
-Implement the ~40-line loop and its `Outcome`-based pipeline, running in parallel to the
-existing `WorkflowEngine` (no cutover yet). Validate against the Phase 0 goldens driven
-through `CorePlan`.
+Prove that a fresh goal workflow with an empty PRD processes the configured seed task instead of exiting immediately, and that completion does not create an unintended second task.
 
 ## Implementation steps
 
-1. Create `src/core/pipeline.ts`: `run(steps, ctx, i)` applying `Policy` uniformly per
-   step (`stop`, `continue`, `retry`, `schedule`). Replace the current leaky
-   `handleFailure` union return (`WorkflowRunResult | "scheduled" | null`) with a single
-   `Outcome` type (as defined in TASK-002), used only by the new pipeline — the old
-   `engine.ts` is untouched.
-2. Create `src/core/engine-core.ts` implementing the loop from the plan:
-   - `lock.acquire()`, iterate `1..maxIterations`, check abort → `canceled`.
-   - `source.pull(i)` → `null` means `complete`.
-   - Build placeholder context via the existing builder (`values(task, i)` equivalent),
-     reusing `PlaceholderExpander`.
-   - Emit `task.started` + status events identical to today's event protocol.
-   - `pipeline.run(steps, ctx, i)`; terminal outcomes (`blocked` / `processFailure` /
-     `canceled`) return immediately.
-   - Run guards (`guards.trip(i, outcome.lastFailure)`) reusing `evaluateCircuitBreaker`
-     → `blocked` on trip.
-   - Call `source.afterTask?.(ctx)` (goal producer/predicate hook).
-   - Fall through to `iterationLimit` when the loop exhausts `maxIterations`.
-3. Preserve exactly: event protocol (`ralph.event type=... iteration=... stage=...
-   message=...` and every event type), exit codes (`0/2/3/4/5`) and their triggering
-   conditions.
-4. Drive the Phase 0 golden tests through `compileCore()` + `engine-core.ts` (new test
-   variants alongside the existing ones, not replacing them) and diff event sequences /
-   exit codes against the Phase 0 baseline recordings.
+1. Identify the smallest existing CLI or integration harness that can run a compiled goal workflow with a fake process runner/task source.
+2. Create an empty PRD fixture and configure the goal continuation with a literal `seedTask`.
+3. Run the workflow and assert the seeded task reaches the pipeline.
+4. Assert the task is checked or otherwise processed according to the normal workflow path.
+5. Assert the workflow does not report immediate empty-PRD completion before processing the seed.
+6. Exercise the completed-initial-goal path and verify no second seed is inserted within the same run.
+7. Keep tests deterministic and avoid invoking a real external AI harness.
 
 ## Acceptance criteria
 
-- [ ] `src/core/pipeline.ts` and `src/core/engine-core.ts` exist; `src/core/engine.ts`
-      is untouched and still used by the CLI.
-- [ ] All Phase 0 golden scenarios pass when run through `compileCore()` +
-      `engine-core.ts`, with event sequences and exit codes matching the baseline.
-- [ ] `grep -E "blueprint|goal|verification|trigger|preAgent|postAgent"
-      src/core/engine-core.ts src/core/pipeline.ts` returns no matches.
-- [ ] `pnpm vitest run` and `pnpm biome check` stay green.
+- [ ] Empty-PRD goal run processes one initial seeded task.
+- [ ] The seed task is visible to normal pipeline steps and verification.
+- [ ] A successful initial goal does not cause an extra generated task.
+- [ ] Existing non-empty goal workflows retain their current execution behavior.
+- [ ] Regression test passes with the project’s normal test command.
+
+## Tests
+
+- Add or update an integration/CLI test under `tests/integration` or the existing CLI test suite.
+- Use fake runners and temporary workspace files where needed.
+- Run the focused integration test before the full suite.

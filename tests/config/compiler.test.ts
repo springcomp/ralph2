@@ -264,6 +264,26 @@ describe("compileWorkflow", () => {
     expect(plan.continuation?.completeWhen?.check).toBeUndefined();
   });
 
+  it("preserves a literal seedTask and leaves it undefined when omitted", () => {
+    const withSeedTask: V1WorkflowDocument = {
+      ...baseDoc,
+      continuation: {
+        kind: "generatedGoal",
+        seedTask: "- [ ] Seed {ITERATION:000}",
+        producer: { executable: "check.sh" },
+        completeWhen: { kind: "fileMissing", path: "status.txt" },
+        nextTask: "- [ ] Fix goal",
+      },
+    };
+
+    expect(
+      compileWorkflow(withSeedTask, "/mock/project").continuation?.seedTask,
+    ).toBe("- [ ] Seed {ITERATION:000}");
+    expect(compileWorkflow(baseDoc, "/mock/project").continuation?.seedTask).toBe(
+      undefined,
+    );
+  });
+
   it("compiles a trigger and defaults its source to the PRD path", () => {
     const withTrigger: V1WorkflowDocument = {
       ...baseDoc,

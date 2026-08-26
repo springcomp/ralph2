@@ -95,6 +95,7 @@ export interface WorkflowPlan {
     source?: string;
     seedPrdFromSource: boolean;
     completeWhenSourceExhausted: boolean;
+    seedTask?: string;
     nextTask?: string;
     producer?: StagePlan;
     completeWhen?: {
@@ -232,6 +233,7 @@ export function compileWorkflow(
         seedPrdFromSource: continuationDto.seedPrdFromSource === true,
         completeWhenSourceExhausted:
           continuationDto.completeWhenSourceExhausted === true,
+        seedTask: text(continuationDto.seedTask) || undefined,
         nextTask: text(continuationDto.nextTask) || undefined,
         producer: (() => {
           const dto = resolveProducerDto(

@@ -163,6 +163,30 @@ describe("validateWorkflow", () => {
     expect(validateWorkflow(doc)).toHaveLength(0);
   });
 
+  it("validates non-empty seedTask and rejects blank or non-string values", () => {
+    const continuation = {
+      kind: "generatedGoal",
+      producer: { executable: "sh" },
+      completeWhen: { kind: "fileMissing" },
+      nextTask: "- [ ] Fix remaining",
+    };
+
+    expect(
+      validateWorkflow({
+        ...validBaseDoc,
+        continuation: { ...continuation, seedTask: "- [ ] Seed task" },
+      }),
+    ).toHaveLength(0);
+
+    for (const seedTask of ["", "   ", 42]) {
+      const paths = validateWorkflow({
+        ...validBaseDoc,
+        continuation: { ...continuation, seedTask },
+      }).map((d) => d.path);
+      expect(paths).toContain("continuation.seedTask");
+    }
+  });
+
   it("collects diagnostics for invalid schema version, workspace, maxIterations, and tasks", () => {
     const doc = {
       schemaVersion: 2,

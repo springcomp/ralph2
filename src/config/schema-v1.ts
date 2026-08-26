@@ -62,6 +62,7 @@ export interface VerificationDto {
 export interface ContinuationDto {
   [key: string]: unknown;
   kind?: unknown;
+  seedTask?: unknown;
 }
 export interface TriggerDto {
   kind?: unknown;

@@ -1,40 +1,28 @@
-# TASK-005 - Phase 4: Cutover to the core engine
+# TASK-005 - Run verification and reconcile generated artifacts
 
-## Context
+## Objective
 
-Ref: [plans/CORE_LOOP.md](../plans/CORE_LOOP.md) — Phase 4.
-
-Switch the CLI to the new engine and delete the now-dead fat-plan machinery.
+Verify the implementation across typechecking, tests, formatting, linting, and repository-generated files.
 
 ## Implementation steps
 
-1. Point `src/cli/index.ts` (and any other engine construction site) at `compileCore()`
-   and `engine-core.ts` instead of `compile()` / `WorkflowEngine`.
-2. Run the full suite; fix any behavioral gaps surfaced by real CLI usage (samples,
-   integration tests) rather than by special-casing the new engine.
-3. Once green, delete dead code from the old fat-plan path:
-   - `handleFailure`, `continueWhenEmpty`, `continueAfterTask`, `awaitTrigger`, inline
-     `runCircuitBreakers`, inline verification loop in `src/core/engine.ts`.
-   - Fat `WorkflowPlan` fields (`preAgent`, `postAgent`, `verification`,
-     `continuation`, `harnesses`, `trigger`, `circuitBreaker`) once no longer read
-     anywhere.
-   - Keep `StagePlan` (still reused by `Step.run`).
-4. Rename/replace `src/core/engine-core.ts` → the canonical engine entry point if the
-   plan calls for dropping the `-core` suffix once the old engine is deleted (only after
-   confirming no remaining references to the old `WorkflowEngine`).
-5. Update any CLI introspection commands (`ralph templates|actions|predicates|
-   triggers|explain ...`) that referenced fat-plan internals to use `CorePlan`
-   equivalents, preserving output format.
+1. Run `pnpm typecheck` and fix type errors caused by the new continuation property or source constructor.
+2. Run focused schema, compiler, source, template, CLI, and integration tests.
+3. Run the complete `pnpm test` suite.
+4. Run `pnpm lint` and apply project formatting conventions without unrelated changes.
+5. Run `pnpm build` and the repository bootstrap/template generation command if generated artifacts are tracked or required.
+6. Inspect the final diff for accidental changes, especially to blueprint template behavior and existing continuation semantics.
+7. Manually verify a fresh goal template in a temporary workspace: empty PRD, first run seeds the literal task, and a completed initial task does not immediately create another task.
 
 ## Acceptance criteria
 
-- [ ] `src/cli/index.ts` constructs and runs the workflow via `compileCore()` +
-      the core engine exclusively.
-- [ ] Dead fat-plan code and unread `WorkflowPlan` fields listed above are removed.
-- [ ] `samples/blueprint/ralph.yaml` and `samples/goal/ralph.yaml` run unchanged via
-      `bootstrap/ralph.js` (manual or scripted smoke run).
-- [ ] CLI flags and introspection commands (`ralph templates|actions|predicates|
-      triggers|explain ...`) still work and produce unchanged output.
-- [ ] Exit codes (`0/2/3/4/5`) and event protocol remain exactly as before.
-- [ ] `pnpm vitest run` and `pnpm biome check` are green; coverage not decreased versus
-      the `coverage/coverage-summary.json` baseline.
+- [ ] Typecheck passes.
+- [ ] Full test suite passes.
+- [ ] Lint/format checks pass.
+- [ ] Build and required generation steps pass.
+- [ ] No unrelated files or behavior changed.
+- [ ] Manual fresh-workspace behavior matches the requested seed-on-first-run semantics.
+
+## Evidence
+
+Record commands run and any relevant output or remaining limitations in the task completion notes or project progress file.

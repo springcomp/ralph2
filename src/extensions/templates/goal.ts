@@ -84,6 +84,7 @@ export const generatedGoalContinuationLowering: ContinuationLowering = {
         },
       },
       nextTask: { type: "string", minLength: 1 },
+      seedTask: { type: "string", minLength: 1, pattern: "\\S" },
     },
   },
   lower: (dto, ctx) => {
