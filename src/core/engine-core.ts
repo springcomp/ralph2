@@ -127,6 +127,9 @@ export class CoreEngine {
             iteration,
             events,
           );
+        // A remediation is work for the next iteration. Do not run guards or
+        // continuation hooks for an iteration whose mandatory gate failed.
+        if (outcome.scheduled) continue;
         const guardMessage = await this.guards(
           plan,
           ctx,

@@ -259,6 +259,63 @@ describe("CoreEngine", () => {
     }
   });
 
+  it("defers guards and continuation until scheduled remediation runs", async () => {
+    const workspace = await mkdtemp(join(tmpdir(), "ralph-remediation-"));
+    try {
+      const scheduled: string[] = [];
+      let guardRuns = 0;
+      let continuationRuns = 0;
+      const taskSource = {
+        ...source([]),
+        pull: async () => task,
+        scheduleTask: async (line: string) => {
+          scheduled.push(line);
+        },
+      };
+      const result = await new CoreEngine(
+        new FakeProcessRunner(),
+        taskSource,
+      ).run({
+        workspace,
+        maxIterations: 1,
+        source: {
+          ...taskSource,
+          afterTask: async () => {
+            continuationRuns++;
+          },
+        },
+        steps: [
+          {
+            ...step(false, {
+              kind: "schedule",
+              action: "scheduleTask",
+              maxAttempts: 1,
+            }),
+            stage,
+          },
+        ],
+        guards: [
+          {
+            kind: "must-not-run",
+            threshold: 1,
+            signature: async () => {
+              guardRuns++;
+              return "failure";
+            },
+          },
+        ],
+        status: () => "working",
+      });
+
+      expect(result.status).toBe("iterationLimit");
+      expect(scheduled).toEqual(["FIX-001 - repair"]);
+      expect(guardRuns).toBe(0);
+      expect(continuationRuns).toBe(0);
+    } finally {
+      await rm(workspace, { recursive: true, force: true });
+    }
+  });
+
   it("blocks when schedule handling is unavailable", async () => {
     const outcome = await run(
       [step(false, { kind: "schedule", action: "fix", maxAttempts: 1 })],
