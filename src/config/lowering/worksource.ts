@@ -76,10 +76,11 @@ export class GeneratorWorkSource implements WorkSource {
     const runtime = ctx as CoreContext & {
       runStage: (
         stage: import("../../config/compiler.js").StagePlan,
+        ctx: CoreContext,
       ) => Promise<{ success: boolean }>;
       expand: (value: string) => string;
     };
-    const produced = await runtime.runStage(this.producer);
+    const produced = await runtime.runStage(this.producer, ctx);
     if (!produced.success) throw new Error("Goal producer failed.");
     const registration = this.extensions.predicate(this.completeWhen.kind);
     if (!registration)
@@ -90,7 +91,7 @@ export class GeneratorWorkSource implements WorkSource {
       path: this.completeWhen.path,
       check: this.completeWhen.check,
       expand: runtime.expand,
-      runStage: runtime.runStage,
+      runStage: (stage) => runtime.runStage(stage, ctx),
     });
     if (!complete)
       await this.source.scheduleTask(

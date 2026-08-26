@@ -67,7 +67,7 @@ postAgent:
       combined: .agentic/__build.log
     onFailure:
       action: scheduleTask
-      task: "- [ ] FIX-{ITERATION:000} - Fix build failure from __build.log"
+      task: "- [ ] FIX-{ITERATION:000} - Fix build failure from .agentic/__build.log"
 
   - name: test
     executable: node
@@ -79,7 +79,7 @@ postAgent:
       combined: .agentic/__test.log
     onFailure:
       action: scheduleTask
-      task: "- [ ] FIX-{ITERATION:000} - Fix unit tests failed from __test.log or improve coverage as per requirements"
+      task: "- [ ] FIX-{ITERATION:000} - Fix unit tests failed from .agentic/__test.log or improve coverage as per requirements"
 
   - name: commit
     executable: node
@@ -91,7 +91,7 @@ postAgent:
       combined: .agentic/__commit.log
     onFailure:
       action: scheduleTask
-      task: "- [ ] JJ-{ITERATION:000} - Do not leave changes uncommitted from __commit.log"
+      task: "- [ ] JJ-{ITERATION:000} - Do not leave changes uncommitted from .agentic/__commit.log"
 
 verification:
   requireTaskChecked: true
