@@ -3,7 +3,11 @@ import { resolve } from "node:path";
 import { atomicWrite } from "../core/atomic-file.js";
 import { readTextFile, readTextFileIfPresent } from "../core/file-io.js";
 import { StateLock } from "../core/locks.js";
-import type { Task, TaskSource } from "../core/task.js";
+import type {
+  Task,
+  TaskDocumentReader,
+  TaskSource,
+} from "../core/task.js";
 
 export class MarkdownTaskError extends Error {
   constructor(message: string) {
@@ -120,12 +124,27 @@ async function update(
   });
 }
 
+export class MarkdownTaskDocumentReader implements TaskDocumentReader {
+  constructor(private readonly documentPath: string) {}
+
+  async getFirstUncheckedTask(): Promise<Task | null> {
+    const parsed = tasks(parseDocument(await readTextFile(this.documentPath)).lines);
+    ensureUniqueUnchecked(parsed);
+    return parsed.find(({ unchecked }) => unchecked)?.task ?? null;
+  }
+}
+
 export class MarkdownTaskSource implements TaskSource {
+  constructor(private readonly prdPath: string) {}
+
+  private path(): string {
+    return this.prdPath;
+  }
+
   async remediationDepth(
-    prdPath: string,
     target: Task,
   ): Promise<{ depth: number; rootId: string }> {
-    const parsed = tasks(parseDocument(await readTextFile(prdPath)).lines);
+    const parsed = tasks(parseDocument(await readTextFile(this.path())).lines);
     const byId = new Map(
       parsed.map(({ task }) => [task.id.toLowerCase(), task]),
     );
@@ -155,8 +174,8 @@ export class MarkdownTaskSource implements TaskSource {
     }
   }
 
-  async isTaskUnchecked(prdPath: string, target: Task): Promise<boolean> {
-    const parsed = tasks(parseDocument(await readTextFile(prdPath)).lines);
+  async isTaskUnchecked(target: Task): Promise<boolean> {
+    const parsed = tasks(parseDocument(await readTextFile(this.path())).lines);
     ensureUniqueUnchecked(parsed);
     const candidates = parsed.filter(
       ({ task }) => task.id.toLowerCase() === target.id.toLowerCase(),
@@ -172,14 +191,14 @@ export class MarkdownTaskSource implements TaskSource {
     throw new MarkdownTaskError(`Task '${target.id}' no longer exists.`);
   }
 
-  async getFirstUncheckedTask(prdPath: string): Promise<Task | null> {
-    const parsed = tasks(parseDocument(await readTextFile(prdPath)).lines);
+  async getFirstUncheckedTask(): Promise<Task | null> {
+    const parsed = tasks(parseDocument(await readTextFile(this.path())).lines);
     ensureUniqueUnchecked(parsed);
     return parsed.find(({ unchecked }) => unchecked)?.task ?? null;
   }
 
-  async checkTask(prdPath: string, task: Task): Promise<void> {
-    await update(prdPath, (lines) => {
+  async checkTask(task: Task): Promise<void> {
+    await update(this.path(), (lines) => {
       const index = lines.findIndex((line) => line.text === task.rawLine);
       if (index < 0)
         throw new MarkdownTaskError(`Task '${task.id}' no longer exists.`);
@@ -193,7 +212,8 @@ export class MarkdownTaskSource implements TaskSource {
     });
   }
 
-  async scheduleTask(prdPath: string, taskLine: string): Promise<void> {
+  async scheduleTask(taskLine: string): Promise<void> {
+    const prdPath = this.path();
     const generated = parseTaskLine(taskLine);
     if (!generated || !taskLine.includes("[ ]"))
       throw new MarkdownTaskError(
@@ -226,10 +246,8 @@ export class MarkdownTaskSource implements TaskSource {
     });
   }
 
-  async seedBlueprintTask(
-    prdPath: string,
-    blueprintPath: string,
-  ): Promise<string | null> {
+  async seedBlueprintTask(blueprintPath: string): Promise<string | null> {
+    const prdPath = this.path();
     if (!(await exists(blueprintPath))) return null;
     const paths = [resolve(blueprintPath), resolve(prdPath)].sort((a, b) =>
       a.localeCompare(b),

@@ -74,7 +74,19 @@ export async function run(
           message: `Action '${policy.action}' is not available.`,
           lastFailure: failure,
         };
-      const scheduledResult = await ctx.schedule(policy, failure);
+      let scheduledResult: "scheduled" | WorkflowRunResult;
+      try {
+        scheduledResult = await ctx.schedule(policy, failure);
+      } catch (error) {
+        return {
+          terminal: true,
+          status: "blocked",
+          message: `Remediation scheduling failed: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+          lastFailure: failure,
+        };
+      }
       if (scheduledResult !== "scheduled") return scheduledResult as never;
       scheduled = true;
       break;

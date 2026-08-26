@@ -1,27 +1,24 @@
 import type { CoreContext, WorkSource } from "../../core/plan.js";
-import type { Task, TaskSource } from "../../core/task.js";
+import type { Task, TaskDocumentReader, TaskSource } from "../../core/task.js";
+import { MarkdownTaskDocumentReader } from "../../task-source/markdown-task-source.js";
 import type { ExtensionRegistry } from "../../extensions/registry.js";
 import type { WorkflowPlan } from "../compiler.js";
 
 export class PrdSource implements WorkSource {
-  constructor(
-    private readonly source: TaskSource,
-    private readonly prdPath: string,
-  ) {}
+  constructor(private readonly source: TaskSource) {}
   pull(): Promise<Task | null> {
-    return this.source.getFirstUncheckedTask(this.prdPath);
+    return this.source.getFirstUncheckedTask();
   }
 }
 
 export class BlueprintRefill implements WorkSource {
   constructor(
     private readonly source: TaskSource,
-    private readonly prdPath: string,
     private readonly blueprintPath: string,
   ) {}
   async pull(): Promise<Task | null> {
-    await this.source.seedBlueprintTask(this.prdPath, this.blueprintPath);
-    return this.source.getFirstUncheckedTask(this.prdPath);
+    await this.source.seedBlueprintTask(this.blueprintPath);
+    return this.source.getFirstUncheckedTask();
   }
 }
 
@@ -69,7 +66,7 @@ export class GeneratorWorkSource implements WorkSource {
     this.initialPullCompleted = true;
     if (task || this.seedTask === undefined) return task;
 
-    await this.source.scheduleTask(this.plan.tasks.prd, this.seedTask);
+    await this.source.scheduleTask(this.seedTask);
     return this.base.pull(iteration);
   }
   async afterTask(ctx: CoreContext): Promise<void> {
@@ -94,10 +91,7 @@ export class GeneratorWorkSource implements WorkSource {
       runStage: (stage) => runtime.runStage(stage, ctx),
     });
     if (!complete)
-      await this.source.scheduleTask(
-        this.plan.tasks.prd,
-        runtime.expand(this.nextTask),
-      );
+      await this.source.scheduleTask(runtime.expand(this.nextTask));
   }
 }
 
@@ -106,6 +100,7 @@ export class TriggerWorkSource implements WorkSource {
     private readonly inner: WorkSource,
     private readonly config: NonNullable<WorkflowPlan["trigger"]>,
     private readonly source: TaskSource,
+    private readonly observedSource: TaskDocumentReader,
     private readonly plan: WorkflowPlan,
     private readonly extensions: ExtensionRegistry,
   ) {}
@@ -124,6 +119,7 @@ export class TriggerWorkSource implements WorkSource {
       pollIntervalMs: this.config.pollIntervalMs,
       workspace: this.plan.workspace,
       taskSource: this.source,
+      observedSource: this.observedSource,
       expand: (v) => v,
       signal: undefined,
       emit: async () => undefined,
@@ -138,8 +134,9 @@ export function lowerWorkSource(
   plan: WorkflowPlan,
   source: TaskSource,
   extensions: ExtensionRegistry,
+  observedSource?: TaskDocumentReader,
 ): WorkSource {
-  const base = new PrdSource(source, plan.tasks.prd);
+  const base = new PrdSource(source);
   let result: WorkSource = base;
   const continuation = plan.continuation;
   if (continuation) {
@@ -154,12 +151,15 @@ export function lowerWorkSource(
     });
   }
   if (plan.trigger) {
+    const observedReader =
+      observedSource ?? new MarkdownTaskDocumentReader(plan.trigger.source);
     const lowering = extensions.triggerLowering(plan.trigger.kind);
     if (!lowering)
       throw new Error(`Trigger '${plan.trigger.kind}' is not registered.`);
     result = lowering.lower(plan.trigger, {
       plan,
       source,
+      observedSource: observedReader,
       extensions,
       inner: result,
     });

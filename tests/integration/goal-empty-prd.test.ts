@@ -35,16 +35,16 @@ describe("generated goal empty PRD integration", () => {
     const prdPath = join(workspace, "PRD.md");
     await writeFile(prdPath, "# Product Requirements\n\n", "utf8");
 
-    const source = new MarkdownTaskSource();
+    const source = new MarkdownTaskSource(prdPath);
     const runner: ProcessRunner & { requests: ProcessRequest[] } = {
       requests: [],
       async run(request) {
         this.requests.push(request);
         if (this.requests.length === 1) {
-          const task = await source.getFirstUncheckedTask(prdPath);
+          const task = await source.getFirstUncheckedTask();
           if (!task)
             throw new Error("Seed task was not visible to the harness.");
-          await source.checkTask(prdPath, task);
+          await source.checkTask(task);
         }
         return success;
       },

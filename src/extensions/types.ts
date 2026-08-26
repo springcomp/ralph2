@@ -6,7 +6,10 @@ import type {
 } from "../config/compiler.js";
 import type { CoreContext, Guard, WorkSource } from "../core/plan.js";
 import type { ProcessResult } from "../core/process-runner.js";
-import type { TaskSource } from "../core/task.js";
+import type {
+  TaskDocumentReader,
+  TaskSource,
+} from "../core/task.js";
 import type { PlaceholderContext } from "../placeholders/placeholders.js";
 import type { ExtensionRegistry } from "./registry.js";
 
@@ -19,7 +22,6 @@ export interface ExtensionEvent {
 
 export interface ActionContext {
   source: TaskSource;
-  prdPath: string;
   stage: StagePlan;
   values: PlaceholderContext;
   expand: (value: string) => string;
@@ -55,8 +57,10 @@ export interface TriggerContext {
   pollIntervalMs: number;
   /** Workspace root directory. */
   workspace: string;
-  /** Shared Markdown task source for reusing task-parsing/exhaustion logic. */
+  /** PRD-bound task source for workflow mutations and task state. */
   taskSource: TaskSource;
+  /** Reader bound to the document observed by this trigger. */
+  observedSource: TaskDocumentReader;
   /** Placeholder expansion bound to the current context. */
   expand: (value: string) => string;
   /** Emit a structured workflow event. */
@@ -130,6 +134,8 @@ export interface ContinuationLowering {
 export interface TriggerLoweringContext {
   plan: WorkflowPlan;
   source: TaskSource;
+  /** Reader bound to the trigger's observed document. */
+  observedSource: TaskDocumentReader;
   extensions: ExtensionRegistry;
   inner: WorkSource;
 }

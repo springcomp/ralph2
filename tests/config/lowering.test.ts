@@ -323,10 +323,7 @@ describe("work-source lowering", () => {
       runStage: async () => ({ success: true }),
       expand: (value: string) => value.replace("{TASK}", task.id),
     });
-    expect(schedule).toHaveBeenCalledWith(
-      "C:\\workspace\\PRD.md",
-      "next TASK-001",
-    );
+    expect(schedule).toHaveBeenCalledWith("next TASK-001");
   });
 
   it("seeds an empty PRD only on the initial pull", async () => {
@@ -352,7 +349,6 @@ describe("work-source lowering", () => {
     expect(await generated.pull(1)).toBe(task);
     expect(schedule).toHaveBeenCalledOnce();
     expect(schedule).toHaveBeenCalledWith(
-      "C:\\workspace\\PRD.md",
       "- [ ] GOAL-{ITERATION:000} - Seed {TASK}",
     );
     expect(await generated.pull(2)).toBeNull();
@@ -407,6 +403,7 @@ describe("work-source lowering", () => {
       inner,
       workflow.trigger,
       source(),
+      { getFirstUncheckedTask: async () => null },
       workflow,
       extensions,
     );
@@ -416,6 +413,7 @@ describe("work-source lowering", () => {
       inner,
       { ...workflow.trigger, kind: "missing" },
       source(),
+      { getFirstUncheckedTask: async () => null },
       workflow,
       extensions,
     );
@@ -469,11 +467,9 @@ describe("work-source lowering", () => {
     let prdHasTask = false;
     let blueprintHasNewTask = false;
     const taskSource = source({
-      getFirstUncheckedTask: vi.fn(async (path?: string) => {
-        if (path === prdPath) return prdHasTask ? task : null;
-        if (path === blueprintPath) return blueprintHasNewTask ? task : null;
-        return null;
-      }),
+      getFirstUncheckedTask: vi.fn(async () =>
+        prdHasTask ? task : null,
+      ),
       seedBlueprintTask: vi.fn(async () => {
         if (blueprintHasNewTask) {
           prdHasTask = true;
@@ -492,7 +488,13 @@ describe("work-source lowering", () => {
       },
       trigger: { kind: "taskAppears", source: blueprintPath, pollIntervalMs: 5 },
     });
-    const lowered = lowerWorkSource(workflow, taskSource, defaultExtensionRegistry);
+    const lowered = lowerWorkSource(
+      workflow,
+      taskSource,
+      defaultExtensionRegistry,
+      { getFirstUncheckedTask: async () =>
+          blueprintHasNewTask ? task : null },
+    );
     expect(lowered).toBeInstanceOf(TriggerWorkSource);
 
     setTimeout(() => {

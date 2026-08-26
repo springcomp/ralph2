@@ -11,8 +11,8 @@ export const scheduleTaskAction: ActionRegistration = {
       description: "Markdown task text to insert into the PRD.",
     },
   ],
-  callback: async ({ source, prdPath, stage, expand, iteration, emit }) => {
-    await source.scheduleTask(prdPath, expand(stage.failureTask ?? ""));
+  callback: async ({ source, stage, expand, iteration, emit }) => {
+    await source.scheduleTask(expand(stage.failureTask ?? ""));
     await emit({
       type: "fix.scheduled",
       iteration,

@@ -51,7 +51,7 @@ describe("blueprint watcher integration", () => {
         pollIntervalMs: 5,
       },
     } as WorkflowPlan;
-    const source = new MarkdownTaskSource();
+    const source = new MarkdownTaskSource(prdPath);
     const runner = new FakeProcessRunner();
     const workflow = lowerWorkSource(plan, source, defaultExtensionRegistry);
 
@@ -59,8 +59,8 @@ describe("blueprint watcher integration", () => {
     expect(firstTask?.id).toBe("TASK-001");
     if (!firstTask) throw new Error("Initial blueprint task was not seeded.");
     await runner.run({ command: "fake-llm", args: [firstTask.id] });
-    await source.checkTask(prdPath, firstTask);
-    expect(await source.getFirstUncheckedTask(prdPath)).toBeNull();
+    await source.checkTask(firstTask);
+    expect(await source.getFirstUncheckedTask()).toBeNull();
     expect(await readFile(blueprintPath, "utf8")).toContain("- [x] TASK-001");
 
     const waitingForTask = workflow.pull(2);
@@ -75,8 +75,8 @@ describe("blueprint watcher integration", () => {
     expect(secondTask?.id).toBe("TASK-002");
     if (!secondTask) throw new Error("Watcher did not return the new task.");
     await runner.run({ command: "fake-llm", args: [secondTask.id] });
-    await source.checkTask(prdPath, secondTask);
+    await source.checkTask(secondTask);
     expect(runner.requests).toHaveLength(2);
-    expect(await source.getFirstUncheckedTask(prdPath)).toBeNull();
+    expect(await source.getFirstUncheckedTask()).toBeNull();
   });
 });

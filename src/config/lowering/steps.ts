@@ -143,13 +143,13 @@ async function validateArtifact(
   }
 }
 
-const taskUnchecked = (source: TaskSource, prd: string): Predicate => ({
+const taskUnchecked = (source: TaskSource): Predicate => ({
   async check(ctx) {
     const runtime = ctx as CoreContext & {
       task: import("../../core/task.js").Task;
       source: TaskSource;
     };
-    return source.isTaskUnchecked(prd, runtime.task);
+    return source.isTaskUnchecked(runtime.task);
   },
 });
 
@@ -194,7 +194,7 @@ export function lowerSteps(
   steps.push(make(harness, "harness"));
   steps.push(...plan.postAgent.map((stage) => make(stage, "post")));
   if (plan.verification.requireTaskChecked) {
-    const predicate = taskUnchecked(source, plan.tasks.prd);
+    const predicate = taskUnchecked(source);
     const verify = { ...harness, name: "verify" };
     const verifyStep = make(verify, "verify", {
       kind: "retry",
@@ -206,7 +206,7 @@ export function lowerSteps(
       const result = await runVerify(ctx);
       if (
         result.success &&
-        (await source.isTaskUnchecked(plan.tasks.prd, ctx.task))
+        (await source.isTaskUnchecked(ctx.task))
       )
         return {
           ...result,

@@ -178,11 +178,10 @@ describe("scheduleTask action", () => {
     const emitted: unknown[] = [];
     await scheduleTaskAction.callback({
       source: {
-        scheduleTask: async (_path: string, task: string): Promise<void> => {
+        scheduleTask: async (task: string): Promise<void> => {
           scheduled.push(task);
         },
       } as TaskSource,
-      prdPath: "PRD.md",
       stage: { name: "build", failureTask: "FIX-{ITERATION}" } as StagePlan,
       values: { iteration: 3 } as PlaceholderContext,
       result: {
@@ -205,11 +204,10 @@ describe("scheduleTask action", () => {
     let scheduled = "";
     await scheduleTaskAction.callback({
       source: {
-        scheduleTask: async (_path: string, task: string): Promise<void> => {
+        scheduleTask: async (task: string): Promise<void> => {
           scheduled = task;
         },
       } as TaskSource,
-      prdPath: "PRD.md",
       stage: { name: "build" } as StagePlan,
       values: { iteration: 1 } as PlaceholderContext,
       result: {

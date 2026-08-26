@@ -188,7 +188,7 @@ export class CoreEngine {
         iteration,
         [],
       );
-    const depth = await source.remediationDepth(plan.workspace, ctx.task);
+    const depth = await source.remediationDepth(ctx.task);
     if (depth.depth >= policy.maxAttempts) {
       await emit({
         type: "remediation.exhausted",
@@ -205,7 +205,6 @@ export class CoreEngine {
     }
     await action.callback({
       source,
-      prdPath: (ctx.prd as string | undefined) ?? plan.workspace,
       stage,
       values: ctx as never,
       expand: (value) => this.expander.expand(value, ctx as never),

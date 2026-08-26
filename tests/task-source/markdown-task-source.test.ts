@@ -48,22 +48,22 @@ describe("MarkdownTaskSource", () => {
   it("gets first unchecked and ignores checked tasks", async () => {
     const { prdPath } = await files("- [x] T-1 - Done\n- [ ] T-2 - Next\n");
     expect(
-      (await new MarkdownTaskSource().getFirstUncheckedTask(prdPath))?.id,
+      (await new MarkdownTaskSource(prdPath).getFirstUncheckedTask())?.id,
     ).toBe("T-2");
   });
   it("rejects duplicate unchecked identities", async () => {
     const { prdPath } = await files("- [ ] T-1 - One\n- [ ] T-1 - Two\n");
     await expect(
-      new MarkdownTaskSource().getFirstUncheckedTask(prdPath),
+      new MarkdownTaskSource(prdPath).getFirstUncheckedTask(),
     ).rejects.toThrow(/ambiguous/);
   });
   it("checks task while preserving surrounding markdown and CRLF", async () => {
     const { prdPath } = await files("# H\r\n  - [ ] T-1 - First\r\nend\r\n");
-    const source = new MarkdownTaskSource();
-    const task = await source.getFirstUncheckedTask(prdPath);
+    const source = new MarkdownTaskSource(prdPath);
+    const task = await source.getFirstUncheckedTask();
     expect(task).not.toBeNull();
     if (!task) throw new Error("Expected task");
-    await source.checkTask(prdPath, task);
+    await source.checkTask(task);
     expect(await readFile(prdPath, "utf8")).toBe(
       "# H\r\n  - [x] T-1 - First\r\nend\r\n",
     );
@@ -72,25 +72,25 @@ describe("MarkdownTaskSource", () => {
     const { prdPath } = await files(
       "- [ ] TASK-1 - First\n- [ ] TASK-2 - Second\n",
     );
-    const source = new MarkdownTaskSource();
-    const target = await source.getFirstUncheckedTask(prdPath);
+    const source = new MarkdownTaskSource(prdPath);
+    const target = await source.getFirstUncheckedTask();
     if (!target) throw new Error("Expected task");
-    await source.scheduleTask(prdPath, "- [ ] FIX-1 - Repair");
-    expect(await source.isTaskUnchecked(prdPath, target)).toBe(true);
-    await source.checkTask(prdPath, target);
-    expect(await source.isTaskUnchecked(prdPath, target)).toBe(false);
+    await source.scheduleTask("- [ ] FIX-1 - Repair");
+    expect(await source.isTaskUnchecked(target)).toBe(true);
+    await source.checkTask(target);
+    expect(await source.isTaskUnchecked(target)).toBe(false);
   });
   it("rejects missing or changed exact tasks", async () => {
     const { prdPath } = await files();
-    const source = new MarkdownTaskSource();
-    const target = await source.getFirstUncheckedTask(prdPath);
+    const source = new MarkdownTaskSource(prdPath);
+    const target = await source.getFirstUncheckedTask();
     if (!target) throw new Error("Expected task");
     await writeFile(prdPath, "- [ ] TASK-001 - Changed\n");
-    await expect(source.isTaskUnchecked(prdPath, target)).rejects.toThrow(
+    await expect(source.isTaskUnchecked(target)).rejects.toThrow(
       /no longer matches/,
     );
     await writeFile(prdPath, "- [ ] OTHER-1 - Other\n");
-    await expect(source.isTaskUnchecked(prdPath, target)).rejects.toThrow(
+    await expect(source.isTaskUnchecked(target)).rejects.toThrow(
       /no longer exists/,
     );
   });
@@ -98,8 +98,8 @@ describe("MarkdownTaskSource", () => {
     const { prdPath } = await files(
       "- [x] T-1 - Done\n- [ ] FIX-2 - Old\n- [ ] T-3 - Later\n",
     );
-    const source = new MarkdownTaskSource();
-    await source.scheduleTask(prdPath, "- [ ] FIX-2 - New");
+    const source = new MarkdownTaskSource(prdPath);
+    await source.scheduleTask("- [ ] FIX-2 - New");
     expect(await readFile(prdPath, "utf8")).toBe(
       "- [x] T-1 - Done\n- [ ] FIX-2 - New\n- [ ] T-3 - Later\n",
     );
@@ -107,28 +107,28 @@ describe("MarkdownTaskSource", () => {
 
   it("schedules at the end of file when no unchecked tasks exist and validates task line", async () => {
     const { prdPath } = await files("- [x] T-1 - Done");
-    const source = new MarkdownTaskSource();
-    await source.scheduleTask(prdPath, "- [ ] T-2 - New");
+    const source = new MarkdownTaskSource(prdPath);
+    await source.scheduleTask("- [ ] T-2 - New");
     expect(await readFile(prdPath, "utf8")).toBe(
       "- [x] T-1 - Done\n- [ ] T-2 - New",
     );
 
-    await expect(source.scheduleTask(prdPath, "invalid task")).rejects.toThrow(
+    await expect(source.scheduleTask("invalid task")).rejects.toThrow(
       MarkdownTaskError,
     );
     await expect(
-      source.scheduleTask(prdPath, "- [x] T-3 - Already checked"),
+      source.scheduleTask("- [x] T-3 - Already checked"),
     ).rejects.toThrow(MarkdownTaskError);
   });
   it("seeds first blueprint task, checks source, and handles missing/exhausted source", async () => {
     const { root, prdPath } = await files("# PRD\n");
     const blueprint = join(root, "BLUEPRINT.md");
     await writeFile(blueprint, "Intro\n- [ ] T-9 - Seed\n- [ ] T-10 - Later\n");
-    const source = new MarkdownTaskSource();
+    const source = new MarkdownTaskSource(prdPath);
     expect(
-      await source.seedBlueprintTask(prdPath, join(root, "missing.md")),
+      await source.seedBlueprintTask(join(root, "missing.md")),
     ).toBeNull();
-    expect(await source.seedBlueprintTask(prdPath, blueprint)).toBe(
+    expect(await source.seedBlueprintTask(blueprint)).toBe(
       "- [ ] T-9 - Seed",
     );
     expect(await readFile(blueprint, "utf8")).toContain("- [x] T-9 - Seed");

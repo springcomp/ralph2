@@ -11,17 +11,15 @@ export interface Task {
 }
 
 /** The task-queue contract the workflow engine drives; `MarkdownTaskSource` is the only implementation today. */
-export interface TaskSource {
-  getFirstUncheckedTask(prdPath: string): Promise<Task | null>;
-  remediationDepth(
-    prdPath: string,
-    target: Task,
-  ): Promise<{ depth: number; rootId: string }>;
-  isTaskUnchecked(prdPath: string, target: Task): Promise<boolean>;
-  checkTask(prdPath: string, task: Task): Promise<void>;
-  scheduleTask(prdPath: string, taskLine: string): Promise<void>;
-  seedBlueprintTask(
-    prdPath: string,
-    blueprintPath: string,
-  ): Promise<string | null>;
+export interface TaskDocumentReader {
+  /** Read the first unchecked task from this reader's bound document. */
+  getFirstUncheckedTask(): Promise<Task | null>;
+}
+
+export interface TaskSource extends TaskDocumentReader {
+  remediationDepth(target: Task): Promise<{ depth: number; rootId: string }>;
+  isTaskUnchecked(target: Task): Promise<boolean>;
+  checkTask(task: Task): Promise<void>;
+  scheduleTask(taskLine: string): Promise<void>;
+  seedBlueprintTask(blueprintPath: string): Promise<string | null>;
 }

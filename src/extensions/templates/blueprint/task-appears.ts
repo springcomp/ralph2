@@ -39,11 +39,11 @@ export const taskAppearsTrigger: TriggerRegistration = {
       description: "Poll cadence (e.g. `5s`, `2m`). Defaults to 5 seconds.",
     },
   ],
-  callback: async ({ source, pollIntervalMs, taskSource, signal }) => {
+  callback: async ({ pollIntervalMs, observedSource, signal }) => {
     while (!signal?.aborted) {
       let task = null;
       try {
-        task = await taskSource.getFirstUncheckedTask(source);
+        task = await observedSource.getFirstUncheckedTask();
       } catch {
         task = null;
       }

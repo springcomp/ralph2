@@ -225,7 +225,7 @@ describe("CoreEngine", () => {
       const taskSource = {
         ...source([]),
         pull: async () => task,
-        scheduleTask: async (_path: string, line: string) => {
+        scheduleTask: async (line: string) => {
           scheduled.push(line);
         },
       };

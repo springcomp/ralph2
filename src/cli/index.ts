@@ -115,9 +115,19 @@ export function createProgram(
   addWorkflowOptions(program.command("run")).action(
     async (options: CliOptions) => {
       try {
-        const source = new MarkdownTaskSource();
+        // Compile once to resolve the workspace and PRD path before creating
+        // the permanently PRD-bound task source.
+        const configPath = resolve(options.config);
+        const document = parseWorkflowYaml(await readTextFile(configPath));
+        const preliminary = compileWorkflow(
+          document,
+          dirname(configPath),
+          options,
+          extensions,
+        );
+        const source = new MarkdownTaskSource(preliminary.tasks.prd);
         const plan = await readCoreConfig(
-          options.config,
+          configPath,
           options,
           source,
           extensions,

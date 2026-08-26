@@ -160,11 +160,7 @@ export const blueprintContinuationLowering: ContinuationLowering = {
       ? new ChainedWorkSource(
           [
             ctx.base,
-            new BlueprintRefill(
-              ctx.source,
-              ctx.plan.tasks.prd,
-              continuation.source,
-            ),
+            new BlueprintRefill(ctx.source, continuation.source),
           ],
           continuation.completeWhenSourceExhausted ? "complete" : "blocked",
           "Blueprint source exhausted.",
