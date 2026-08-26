@@ -34,13 +34,20 @@ describe("extension registry - built-in templates", () => {
     expect(reg?.files.get("progress.txt")).toBeDefined();
   });
 
-  it("goal template yaml contains fileMissing, marker path, timeout, and nextTask", () => {
+  it("goal template yaml contains fileMissing, marker path, timeout, seedTask, and nextTask", () => {
     const yaml =
       defaultExtensionRegistry.template("goal")?.files.get("ralph.yaml") ?? "";
     expect(yaml).toContain("fileMissing");
     expect(yaml).toContain(".agentic/__remaining_failures.log");
     expect(yaml).toContain("15m");
+    expect(yaml).toContain('seedTask: "- [ ] GOAL-001 - Define first goal"');
     expect(yaml).toContain("GOAL-{ITERATION:000}");
+  });
+
+  it("goal template starts with an empty PRD", () => {
+    expect(defaultExtensionRegistry.template("goal")?.files.get("PRD.md")).toBe(
+      "# Product Requirements\n\n",
+    );
   });
 
   it("blueprint template reuses goal files and configures source seeding", () => {

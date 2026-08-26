@@ -15,14 +15,14 @@ Make the goal template install an empty PRD and configure its initial goal throu
 
 ## Acceptance criteria
 
-- [ ] Fresh goal initialization creates an empty PRD apart from its heading.
-- [ ] Goal YAML contains the literal configured `seedTask`.
-- [ ] The default seed task matches the current starter task text.
-- [ ] Subsequent generated goals still use the existing `nextTask` expression.
-- [ ] Blueprint template behavior remains unchanged unless it intentionally derives from the updated goal files.
+- [x] Fresh goal initialization creates an empty PRD apart from its heading.
+- [x] Goal YAML contains the literal configured `seedTask`.
+- [x] The default seed task matches the current starter task text.
+- [x] Subsequent generated goals still use the existing `nextTask` expression.
+- [x] Blueprint template behavior remains unchanged unless it intentionally derives from the updated goal files.
 
 ## Tests
 
-- Update registry/template tests to assert the empty PRD and configured seed task.
-- Verify goal and blueprint template registrations still expose required files.
-- Run template-focused tests and inspect generated artifacts when applicable.
+- [x] Update registry/template tests to assert the empty PRD and configured seed task.
+- [x] Verify goal and blueprint template registrations still expose required files.
+- [x] Run template-focused tests and inspect generated artifacts when applicable.

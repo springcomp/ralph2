@@ -19,16 +19,16 @@ Change `GeneratorWorkSource` so an empty PRD can receive a configured literal se
 
 ## Acceptance criteria
 
-- [ ] Empty PRD plus configured `seedTask` causes exactly one schedule operation on the initial pull.
-- [ ] The initial pull returns the task made available by that schedule operation.
-- [ ] A non-empty PRD is returned without a seed write.
-- [ ] A missing `seedTask` does not alter current behavior.
-- [ ] A later empty pull after initial processing does not reseed during the same workflow run.
-- [ ] Initial seeding does not run the producer or completion predicate.
-- [ ] Existing post-task `nextTask` expansion remains unchanged.
+- [x] Empty PRD plus configured `seedTask` causes exactly one schedule operation on the initial pull.
+- [x] The initial pull returns the task made available by that schedule operation.
+- [x] A non-empty PRD is returned without a seed write.
+- [x] A missing `seedTask` does not alter current behavior.
+- [x] A later empty pull after initial processing does not reseed during the same workflow run.
+- [x] Initial seeding does not run the producer or completion predicate.
+- [x] Existing post-task `nextTask` expansion remains unchanged.
 
 ## Tests
 
-- Add focused `GeneratorWorkSource` tests using mocked `TaskSource` methods.
-- Test empty, non-empty, missing-seed, and no-reseed cases.
-- Test that the literal seed is passed unchanged and `afterTask` still expands `nextTask`.
+- [x] Add focused `GeneratorWorkSource` tests using mocked `TaskSource` methods.
+- [x] Test empty, non-empty, missing-seed, and no-reseed cases.
+- [x] Test that the literal seed is passed unchanged and `afterTask` still expands `nextTask`.

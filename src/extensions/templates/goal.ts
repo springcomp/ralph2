@@ -66,6 +66,7 @@ continuation:
   completeWhen:
     kind: fileMissing
     path: .agentic/__remaining_failures.log
+  seedTask: "- [ ] GOAL-001 - Define first goal"
   nextTask: "- [ ] GOAL-{ITERATION:000} - Resolve remaining failures"
 `;
 
@@ -114,7 +115,7 @@ export const goalTemplateRegistration: TemplateRegistration = {
     ["ralph.prompt.md", "Follow instructions from .agentic/PRD.md.\n"],
     [
       "PRD.md",
-      "# Product Requirements\n\n- [ ] GOAL-001 - Define first goal\n",
+      "# Product Requirements\n\n",
     ],
     ["progress.txt", "# Progress\n\n"],
   ]),
