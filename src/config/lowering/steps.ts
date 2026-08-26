@@ -1,6 +1,7 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import { loadEnvFile } from "../../core/env-file.js";
+import { readTextFile } from "../../core/file-io.js";
 import type {
   CoreContext,
   Policy,
@@ -126,7 +127,7 @@ async function validateArtifact(
   if (!stage.resultPath) return false;
   try {
     const parsed: unknown = JSON.parse(
-      await readFile(expander.expand(stage.resultPath, v), "utf8"),
+      await readTextFile(expander.expand(stage.resultPath, v)),
     );
     return !!parsed && typeof parsed === "object" && !Array.isArray(parsed);
   } catch (error) {

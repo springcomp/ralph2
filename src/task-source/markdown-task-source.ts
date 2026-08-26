@@ -1,6 +1,7 @@
-import { access, readFile } from "node:fs/promises";
+import { access } from "node:fs/promises";
 import { resolve } from "node:path";
 import { atomicWrite } from "../core/atomic-file.js";
+import { readTextFile, readTextFileIfPresent } from "../core/file-io.js";
 import { StateLock } from "../core/locks.js";
 import type { Task, TaskSource } from "../core/task.js";
 
@@ -109,7 +110,7 @@ async function update(
 ): Promise<void> {
   const lock = new StateLock(path);
   await lock.withLock(async () => {
-    const original = await readFile(path, "utf8").catch(() => "");
+    const original = await readTextFileIfPresent(path);
     const document = parseDocument(original);
     if (!operation(document.lines)) return;
     await atomicWrite(
@@ -124,7 +125,7 @@ export class MarkdownTaskSource implements TaskSource {
     prdPath: string,
     target: Task,
   ): Promise<{ depth: number; rootId: string }> {
-    const parsed = tasks(parseDocument(await readFile(prdPath, "utf8")).lines);
+    const parsed = tasks(parseDocument(await readTextFile(prdPath)).lines);
     const byId = new Map(
       parsed.map(({ task }) => [task.id.toLowerCase(), task]),
     );
@@ -155,7 +156,7 @@ export class MarkdownTaskSource implements TaskSource {
   }
 
   async isTaskUnchecked(prdPath: string, target: Task): Promise<boolean> {
-    const parsed = tasks(parseDocument(await readFile(prdPath, "utf8")).lines);
+    const parsed = tasks(parseDocument(await readTextFile(prdPath)).lines);
     ensureUniqueUnchecked(parsed);
     const candidates = parsed.filter(
       ({ task }) => task.id.toLowerCase() === target.id.toLowerCase(),
@@ -172,7 +173,7 @@ export class MarkdownTaskSource implements TaskSource {
   }
 
   async getFirstUncheckedTask(prdPath: string): Promise<Task | null> {
-    const parsed = tasks(parseDocument(await readFile(prdPath, "utf8")).lines);
+    const parsed = tasks(parseDocument(await readTextFile(prdPath)).lines);
     ensureUniqueUnchecked(parsed);
     return parsed.find(({ unchecked }) => unchecked)?.task ?? null;
   }
@@ -238,14 +239,12 @@ export class MarkdownTaskSource implements TaskSource {
     await first.acquire();
     if (second) await second.acquire();
     try {
-      const source = parseDocument(await readFile(blueprintPath, "utf8"));
+      const source = parseDocument(await readTextFile(blueprintPath));
       const sourceTasks = tasks(source.lines);
       ensureUniqueUnchecked(sourceTasks);
       const selected = sourceTasks.find(({ unchecked }) => unchecked);
       if (!selected) return null;
-      const prd = parseDocument(
-        await readFile(prdPath, "utf8").catch(() => ""),
-      );
+      const prd = parseDocument(await readTextFileIfPresent(prdPath));
       const lastLine = prd.lines.at(-1);
       if (lastLine && lastLine.newline === "")
         lastLine.newline = prd.defaultNewline;

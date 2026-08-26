@@ -1,6 +1,6 @@
-import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { atomicWrite } from "./atomic-file.js";
+import { readTextFile } from "./file-io.js";
 import { StateLock } from "./locks.js";
 
 /** Persisted per-check streak state, keyed by check name. */
@@ -18,7 +18,7 @@ export function circuitBreakerStatePath(workspace: string): string {
 
 async function readState(path: string): Promise<CircuitBreakerState> {
   try {
-    const raw = await readFile(path, "utf8");
+    const raw = await readTextFile(path);
     const parsed: unknown = JSON.parse(raw);
     if (parsed && typeof parsed === "object")
       return parsed as CircuitBreakerState;

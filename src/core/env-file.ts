@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises";
+import { readTextFile } from "./file-io.js";
 
 export function parseEnvAssignment(
   entry: string,
@@ -31,5 +31,5 @@ export function parseEnvFile(content: string): Record<string, string> {
 export async function loadEnvFile(
   path: string,
 ): Promise<Record<string, string>> {
-  return parseEnvFile(await readFile(path, "utf8"));
+  return parseEnvFile(await readTextFile(path));
 }

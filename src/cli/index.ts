@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { access, mkdir, readFile, writeFile } from "node:fs/promises";
+import { access, mkdir, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { Command } from "commander";
 import {
@@ -15,6 +15,7 @@ import {
 } from "../config/validator.js";
 import { CoreEngine } from "../core/engine-core.js";
 import { WorkflowExitCodes } from "../core/exit-codes.js";
+import { readTextFile } from "../core/file-io.js";
 import { RealProcessRunner } from "../core/process-runner.js";
 import {
   type ActionRegistration,
@@ -60,7 +61,7 @@ async function readConfig(
   options: CliOptions,
   extensions: ExtensionRegistry = defaultExtensionRegistry,
 ) {
-  const text = await readFile(path, "utf8");
+  const text = await readTextFile(path);
   const document = parseWorkflowYaml(text);
   return compileWorkflow(document, dirname(resolve(path)), options, extensions);
 }
@@ -71,7 +72,7 @@ async function readCoreConfig(
   source: MarkdownTaskSource,
   extensions: ExtensionRegistry = defaultExtensionRegistry,
 ) {
-  const text = await readFile(path, "utf8");
+  const text = await readTextFile(path);
   const document = parseWorkflowYaml(text);
   return compileCore(
     document,

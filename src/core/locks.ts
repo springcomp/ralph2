@@ -1,7 +1,8 @@
-import { access, mkdir, open, readFile, rm, stat } from "node:fs/promises";
+import { access, mkdir, open, rm, stat } from "node:fs/promises";
 import { hostname } from "node:os";
 import { dirname, resolve } from "node:path";
 import { WorkflowExitCodes } from "./exit-codes.js";
+import { readTextFile } from "./file-io.js";
 
 export interface LockMetadata {
   readonly pid: number;
@@ -30,7 +31,7 @@ function metadata(): LockMetadata {
 
 async function readMetadata(path: string): Promise<LockMetadata | undefined> {
   try {
-    const value: unknown = JSON.parse(await readFile(path, "utf8"));
+    const value: unknown = JSON.parse(await readTextFile(path));
     if (
       typeof value === "object" &&
       value !== null &&
