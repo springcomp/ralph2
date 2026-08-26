@@ -9,3 +9,4 @@
 - [x] JJ-004 - Do not leave changes uncommitted from .agentic/__commit.log
 - [x] TASK-005 - Split built-in templates into goal intent and queue state (ref: `TASK-005.md`)
 - [x] TASK-006 - Migrate executable samples and architecture docs (ref: `TASK-006.md`)
+- [x] TASK-007 - Add configuration, placeholder, core, and template regression tests (ref: `TASK-007.md`)

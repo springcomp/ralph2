@@ -14,7 +14,7 @@ maxIterations: 100
 
 tasks:
   format: markdown
-  prd: .agentic/PRD.md
+  queue: .agentic/queue.md
   progress: .agentic/progress.txt
   prompt: .agentic/ralph.prompt.md
   completionSignal: <ralph>COMPLETE</ralph>
@@ -34,7 +34,7 @@ harnesses:
       - --model
       - "{MODEL}"
       - --print
-      - "Follow instructions from {PROMPT} prd={PRD} progress={PROGRESS}"
+      - "Follow instructions from {PROMPT} queue={QUEUE} progress={PROGRESS}"
     conditionalArguments:
       - whenSet: AGENT
         arguments:
@@ -54,7 +54,7 @@ verification:
   prompt: |
     Task: {TASK}
 
-    Verify work complete. Check task in PRD if complete, or document blockers in progress.txt.
+    Verify work complete. Check task in the queue if complete, or document blockers in progress.txt.
 
 continuation:
   kind: blueprint
@@ -70,12 +70,13 @@ trigger:
 
 const files = new Map(goalTemplateRegistration.files);
 files.set("ralph.yaml", blueprintYaml);
-files.set("PRD.md", "# Product Requirements\n\n");
+files.set("GOAL.md", "# Goal\n\n");
+files.set("queue.md", "# Ralph execution queue\n\n");
 files.set(
   "ralph.prompt.md",
   `
 ---
-argument-hint: [prd={PRD}] [progress={PROGRESS}]
+argument-hint: [queue={QUEUE}] [progress={PROGRESS}]
 ---
 # Ralph Loop
 
@@ -84,10 +85,10 @@ Each iteration, you get a fresh context window.
 
 ## Files
 
-- \`{PRD}\` (defaults to \`.agentic/PRD.md\`: path Product Requirements Document (PRD) from workspace root.
+- \`{QUEUE}\` (defaults to \`.agentic/queue.md\`: Ralph execution queue.
 - \`{PROGRESS}\` (defaults to \`.agentic/progress.txt\`: path progress file from workspace root.
 
-PRD maintains a bulleted list of checkable task, with format:
+The queue maintains a bulleted list of checkable tasks, with format:
 
 > \`- [ ] {TYP}-{NUM} - {TASK} ({REF})? …\`
 
@@ -99,10 +100,10 @@ Where:
 
 ## Workflow
 
-1. Pick up the first unchecked task (\`- [ ]\`) from \`{PRD}\`.
+1. Pick up the first unchecked task (\`- [ ]\`) from \`{QUEUE}\`.
 2. Read PROGRESS for context.
 3. Follow TYP-specific task rules (see \`### Tasks\` below) .
-4. When done, check task in \'{PRD}\`.
+4. When done, check task in \'{QUEUE}\`.
 5. Persist any learnings or findings in \`{PROGRESS}\`.
 
 ### Tasks

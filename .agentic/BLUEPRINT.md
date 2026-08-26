@@ -6,5 +6,5 @@
 - [x] TASK-004 - Deliver selected task through generated harness prompt (ref: `TASK-004.md`)
 - [x] TASK-005 - Split built-in templates into goal intent and queue state (ref: `TASK-005.md`)
 - [x] TASK-006 - Migrate executable samples and architecture docs (ref: `TASK-006.md`)
-- [ ] TASK-007 - Add configuration, placeholder, core, and template regression tests (ref: `TASK-007.md`)
+- [x] TASK-007 - Add configuration, placeholder, core, and template regression tests (ref: `TASK-007.md`)
 - [ ] TASK-008 - Update integration tests and run full verification (ref: `TASK-008.md`)

@@ -10,7 +10,7 @@ maxIterations: 100
 
 tasks:
   format: markdown
-  prd: .agentic/PRD.md
+  queue: .agentic/queue.md
   progress: .agentic/progress.txt
   prompt: .agentic/ralph.prompt.md
   completionSignal: <ralph>COMPLETE</ralph>
@@ -50,7 +50,7 @@ verification:
   prompt: |
     Task: {TASK}
 
-    Verify work complete. Check task in PRD if complete, or document blockers in progress.txt.
+    Verify work complete. Check task in the queue if complete, or document blockers in progress.txt.
 `;
 
 const goalYaml = `${common}
@@ -112,11 +112,9 @@ export const goalTemplateRegistration: TemplateRegistration = {
   name: "goal",
   files: new Map([
     ["ralph.yaml", goalYaml],
-    ["ralph.prompt.md", "Follow instructions from .agentic/PRD.md.\n"],
-    [
-      "PRD.md",
-      "# Product Requirements\n\n",
-    ],
+    ["ralph.prompt.md", "Follow instructions from .agentic/GOAL.md.\n"],
+    ["GOAL.md", "# Goal\n\n"],
+    ["queue.md", "# Ralph execution queue\n\n"],
     ["progress.txt", "# Progress\n\n"],
   ]),
   producers: [goalProducerRegistration],

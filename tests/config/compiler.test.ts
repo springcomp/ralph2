@@ -295,6 +295,27 @@ describe("compileWorkflow", () => {
     expect(plan.trigger?.source).toBe(plan.tasks.prd);
   });
 
+  it("defaults trigger source to the canonical queue and lowers engine completion", () => {
+    const document: V1WorkflowDocument = {
+      ...baseDoc,
+      goal: "GOAL.md",
+      tasks: {
+        queue: "tasks/queue.md",
+        progress: "tasks/progress.txt",
+        prompt: "tasks/prompt.md",
+        completion: "engine",
+      },
+      trigger: { kind: "taskAppears" },
+    };
+    const plan = compileWorkflow(document, "/mock/project");
+    expect(plan.trigger?.source).toBe(
+      resolve("/mock/project/work-dir/tasks/queue.md"),
+    );
+    expect(plan.goalPath).toBe(resolve("/mock/project/work-dir/GOAL.md"));
+    expect(plan.completion).toBe("engine");
+    expect(plan.tasks.completion).toBe("engine");
+  });
+
   it("compiles a trigger with an explicit source and default poll interval", () => {
     const withTrigger: V1WorkflowDocument = {
       ...baseDoc,

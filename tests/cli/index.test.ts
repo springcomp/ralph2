@@ -220,6 +220,15 @@ describe("CLI Application", () => {
         "utf8",
       );
       expect(yaml).toContain("generatedGoal");
+      await expect(
+        readFile(join(tmpDir, ".agentic", "GOAL.md"), "utf8"),
+      ).resolves.toBe("# Goal\n\n");
+      await expect(
+        readFile(join(tmpDir, ".agentic", "queue.md"), "utf8"),
+      ).resolves.toContain("Ralph execution queue");
+      await expect(
+        readFile(join(tmpDir, ".agentic", "PRD.md"), "utf8"),
+      ).rejects.toMatchObject({ code: "ENOENT" });
       expect(consoleLogSpy).toHaveBeenCalledWith(
         expect.stringContaining("Initialized goal workflow"),
       );

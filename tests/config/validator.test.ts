@@ -116,6 +116,36 @@ describe("validateWorkflow", () => {
     expect(diagnostics).toHaveLength(0);
   });
 
+  it("accepts canonical queue-only and compatible alias configurations", () => {
+    const queueOnly = {
+      ...validBaseDoc,
+      goal: ".agentic/GOAL.md",
+      tasks: { ...validBaseDoc.tasks, queue: ".agentic/queue.md" },
+    };
+    expect(validateWorkflow(queueOnly)).toHaveLength(0);
+    expect(
+      validateWorkflow({
+        ...queueOnly,
+        tasks: { ...queueOnly.tasks, prd: ".agentic/queue.md" },
+      }),
+    ).toHaveLength(0);
+  });
+
+  it("validates goal path and completion ownership enum", () => {
+    expect(
+      validateWorkflow({
+        ...validBaseDoc,
+        goal: ".agentic/GOAL.md",
+        tasks: { ...validBaseDoc.tasks, completion: "engine" },
+      }),
+    ).toHaveLength(0);
+    const diagnostics = validateWorkflow({
+      ...validBaseDoc,
+      tasks: { ...validBaseDoc.tasks, completion: "workflow" },
+    });
+    expect(diagnostics.map((d) => d.path)).toContain("tasks.completion");
+  });
+
   it("accepts a boolean pty field on a command and rejects non-boolean values", () => {
     const withPty = {
       ...validBaseDoc,

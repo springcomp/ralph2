@@ -30,7 +30,9 @@ describe("extension registry - built-in templates", () => {
     expect(reg?.files.get("ralph.yaml")).toContain("generatedGoal");
     expect(reg?.files.get("ralph.yaml")).toContain("schemaVersion: 1");
     expect(reg?.files.get("ralph.prompt.md")).toBeDefined();
-    expect(reg?.files.get("PRD.md")).toBeDefined();
+    expect(reg?.files.get("GOAL.md")).toBeDefined();
+    expect(reg?.files.get("queue.md")).toBeDefined();
+    expect(reg?.files.has("PRD.md")).toBe(false);
     expect(reg?.files.get("progress.txt")).toBeDefined();
   });
 
@@ -44,10 +46,22 @@ describe("extension registry - built-in templates", () => {
     expect(yaml).toContain("GOAL-{ITERATION:000}");
   });
 
-  it("goal template starts with an empty PRD", () => {
-    expect(defaultExtensionRegistry.template("goal")?.files.get("PRD.md")).toBe(
-      "# Product Requirements\n\n",
-    );
+  it("goal template starts with goal intent and an empty queue", () => {
+    const files = defaultExtensionRegistry.template("goal")?.files;
+    expect(files?.get("GOAL.md")).toBe("# Goal\n\n");
+    expect(files?.get("queue.md")).toContain("Ralph execution queue");
+    expect(files?.has("PRD.md")).toBe(false);
+    expect(files?.get("ralph.yaml")).toContain("queue: .agentic/queue.md");
+  });
+
+  it("blueprint template emits goal and queue files without a goal PRD", () => {
+    const files = defaultExtensionRegistry.template("blueprint")?.files;
+    expect(files?.get("GOAL.md")).toBe("# Goal\n\n");
+    expect(files?.get("queue.md")).toContain("Ralph execution queue");
+    expect(files?.has("PRD.md")).toBe(false);
+    expect(files?.get("ralph.yaml")).toContain("queue: .agentic/queue.md");
+    expect(files?.get("ralph.prompt.md")).toContain("{QUEUE}");
+    expect(files?.get("ralph.prompt.md")).not.toContain("{PRD}");
   });
 
   it("blueprint template reuses goal files and configures source seeding", () => {
@@ -56,7 +70,8 @@ describe("extension registry - built-in templates", () => {
     expect(blueprint?.files.get("ralph.prompt.md")).not.toBe(
       goal?.files.get("ralph.prompt.md"),
     );
-    expect(blueprint?.files.get("ralph.prompt.md")).toContain("{PRD}");
+    expect(blueprint?.files.get("ralph.prompt.md")).toContain("{QUEUE}");
+    expect(blueprint?.files.get("ralph.prompt.md")).not.toContain("{PRD}");
     expect(blueprint?.files.get("ralph.prompt.md")).toContain("{PROGRESS}");
     expect(blueprint?.files.get("progress.txt")).toBe(
       goal?.files.get("progress.txt"),
