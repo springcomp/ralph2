@@ -6,3 +6,5 @@
 - [x] TASK-002 - Add queue and goal placeholders (ref: `TASK-002.md`)
 - [x] TASK-003 - Implement engine-owned successful task completion (ref: `TASK-003.md`)
 - [x] TASK-004 - Deliver selected task through generated harness prompt (ref: `TASK-004.md`)
+- [ ] JJ-004 - Do not leave changes uncommitted from .agentic/__commit.log
+- [ ] TASK-005 - Split built-in templates into goal intent and queue state (ref: `TASK-005.md`)
