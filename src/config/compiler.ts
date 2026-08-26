@@ -410,6 +410,7 @@ export function compileCore(
     workspace: plan.workspace,
     maxIterations: plan.maxIterations,
     source: lowerWorkSource(plan, source, extensions),
+    completeTask: plan.completion === "engine",
     steps: lowerSteps(plan, source, expander),
     guards: (plan.circuitBreaker?.checks ?? []).map((check) => {
       const lowering = extensions.circuitBreakerLowering(check.kind);

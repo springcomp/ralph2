@@ -83,6 +83,8 @@ export interface CorePlan {
   readonly workspace: string;
   readonly maxIterations: number;
   readonly source: WorkSource;
+  /** When true, the engine checks each task after all successful gates. */
+  readonly completeTask?: boolean;
   readonly steps: Step[];
   readonly guards: Guard[];
   status(ctx: CoreContext): string;

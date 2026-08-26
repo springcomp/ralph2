@@ -4,3 +4,4 @@
 - [x] TASK-004 - Add end-to-end empty-PRD regression coverage (ref: `TASK-004.md`)
 - [x] TASK-001 - Add canonical queue, goal, and completion configuration (ref: `TASK-001.md`)
 - [x] TASK-002 - Add queue and goal placeholders (ref: `TASK-002.md`)
+- [x] TASK-003 - Implement engine-owned successful task completion (ref: `TASK-003.md`)

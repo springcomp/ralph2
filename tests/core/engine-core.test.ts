@@ -1,7 +1,7 @@
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { CoreEngine } from "../../src/core/engine-core.js";
 import { FakeProcessRunner } from "../../src/core/fake-process-runner.js";
 import { run } from "../../src/core/pipeline.js";
@@ -149,6 +149,74 @@ describe("CoreEngine", () => {
       ).run(plan);
       expect(result.status).toBe("blocked");
       expect(result.events.at(-1)?.type).toBe("circuitBreaker.tripped");
+    } finally {
+      await rm(workspace, { recursive: true, force: true });
+    }
+  });
+
+  it("checks engine-owned tasks before continuation", async () => {
+    const workspace = await mkdtemp(join(tmpdir(), "ralph-completion-"));
+    try {
+      const order: string[] = [];
+      const taskSource = {
+        ...source([]),
+        pull: async () => task,
+        checkTask: async () => {
+          order.push("check");
+        },
+      };
+      const result = await new CoreEngine(
+        new FakeProcessRunner(),
+        taskSource,
+      ).run({
+        workspace,
+        maxIterations: 1,
+        source: {
+          ...taskSource,
+          afterTask: async () => {
+            order.push("after");
+          },
+        },
+        completeTask: true,
+        steps: [step(true)],
+        guards: [],
+        status: () => "working",
+      });
+      expect(result.status).toBe("iterationLimit");
+      expect(order).toEqual(["check", "after"]);
+    } finally {
+      await rm(workspace, { recursive: true, force: true });
+    }
+  });
+
+  it("blocks when engine-owned task completion fails", async () => {
+    const workspace = await mkdtemp(join(tmpdir(), "ralph-completion-error-"));
+    try {
+      const afterTask = vi.fn(async () => undefined);
+      const taskSource = {
+        ...source([]),
+        pull: async () => task,
+        checkTask: async () => {
+          throw new Error("write failed");
+        },
+      };
+      const result = await new CoreEngine(
+        new FakeProcessRunner(),
+        taskSource,
+      ).run({
+        workspace,
+        maxIterations: 1,
+        source: { ...taskSource, afterTask },
+        completeTask: true,
+        steps: [step(true)],
+        guards: [],
+        status: () => "working",
+      });
+      expect(result).toMatchObject({
+        status: "blocked",
+        message: "Task completion failed: write failed",
+      });
+      expect(afterTask).not.toHaveBeenCalled();
     } finally {
       await rm(workspace, { recursive: true, force: true });
     }

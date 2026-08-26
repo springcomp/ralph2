@@ -138,6 +138,18 @@ export class CoreEngine {
         );
         if (guardMessage)
           return this.result("blocked", guardMessage, iteration, events);
+        if (plan.completeTask) {
+          try {
+            await this.source.checkTask(ctx.task);
+          } catch (error) {
+            return this.result(
+              "blocked",
+              `Task completion failed: ${this.message(error)}`,
+              iteration,
+              events,
+            );
+          }
+        }
         try {
           await plan.source.afterTask?.(ctx);
         } catch (error) {
