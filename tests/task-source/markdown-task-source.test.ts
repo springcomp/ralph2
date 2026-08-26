@@ -125,12 +125,8 @@ describe("MarkdownTaskSource", () => {
     const blueprint = join(root, "BLUEPRINT.md");
     await writeFile(blueprint, "Intro\n- [ ] T-9 - Seed\n- [ ] T-10 - Later\n");
     const source = new MarkdownTaskSource(prdPath);
-    expect(
-      await source.seedBlueprintTask(join(root, "missing.md")),
-    ).toBeNull();
-    expect(await source.seedBlueprintTask(blueprint)).toBe(
-      "- [ ] T-9 - Seed",
-    );
+    expect(await source.seedBlueprintTask(join(root, "missing.md"))).toBeNull();
+    expect(await source.seedBlueprintTask(blueprint)).toBe("- [ ] T-9 - Seed");
     expect(await readFile(blueprint, "utf8")).toContain("- [x] T-9 - Seed");
     expect(await readFile(prdPath, "utf8")).toContain("- [ ] T-9 - Seed");
   });

@@ -1,8 +1,8 @@
 import { execFile } from "node:child_process";
+import { createHash } from "node:crypto";
 import { access } from "node:fs/promises";
 import { join } from "node:path";
 import { promisify } from "node:util";
-import { createHash } from "node:crypto";
 import type { CircuitBreakerRegistration } from "../registry.js";
 
 const run = promisify(execFile);

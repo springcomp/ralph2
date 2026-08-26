@@ -159,10 +159,7 @@ export const blueprintContinuationLowering: ContinuationLowering = {
     };
     return continuation.source && continuation.seedPrdFromSource
       ? new ChainedWorkSource(
-          [
-            ctx.base,
-            new BlueprintRefill(ctx.source, continuation.source),
-          ],
+          [ctx.base, new BlueprintRefill(ctx.source, continuation.source)],
           continuation.completeWhenSourceExhausted ? "complete" : "blocked",
           "Blueprint source exhausted.",
         )

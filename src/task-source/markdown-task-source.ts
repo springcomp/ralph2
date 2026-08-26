@@ -3,11 +3,7 @@ import { resolve } from "node:path";
 import { atomicWrite } from "../core/atomic-file.js";
 import { readTextFile, readTextFileIfPresent } from "../core/file-io.js";
 import { StateLock } from "../core/locks.js";
-import type {
-  Task,
-  TaskDocumentReader,
-  TaskSource,
-} from "../core/task.js";
+import type { Task, TaskDocumentReader, TaskSource } from "../core/task.js";
 
 export class MarkdownTaskError extends Error {
   constructor(message: string) {
@@ -128,7 +124,9 @@ export class MarkdownTaskDocumentReader implements TaskDocumentReader {
   constructor(private readonly documentPath: string) {}
 
   async getFirstUncheckedTask(): Promise<Task | null> {
-    const parsed = tasks(parseDocument(await readTextFile(this.documentPath)).lines);
+    const parsed = tasks(
+      parseDocument(await readTextFile(this.documentPath)).lines,
+    );
     ensureUniqueUnchecked(parsed);
     return parsed.find(({ unchecked }) => unchecked)?.task ?? null;
   }

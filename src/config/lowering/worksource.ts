@@ -1,7 +1,7 @@
 import type { CoreContext, WorkSource } from "../../core/plan.js";
 import type { Task, TaskDocumentReader, TaskSource } from "../../core/task.js";
-import { MarkdownTaskDocumentReader } from "../../task-source/markdown-task-source.js";
 import type { ExtensionRegistry } from "../../extensions/registry.js";
+import { MarkdownTaskDocumentReader } from "../../task-source/markdown-task-source.js";
 import type { WorkflowPlan } from "../compiler.js";
 
 export class PrdSource implements WorkSource {

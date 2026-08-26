@@ -3,7 +3,10 @@ import { dirname, resolve } from "node:path";
 
 const renameRetryDelaysMs = [5, 10, 25, 50, 100];
 
-async function replaceWithRetry(temporary: string, path: string): Promise<void> {
+async function replaceWithRetry(
+  temporary: string,
+  path: string,
+): Promise<void> {
   for (let attempt = 0; ; attempt += 1) {
     try {
       await rename(temporary, path);

@@ -5,14 +5,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 const fsState = vi.hoisted(() => ({
   renameMock: vi.fn(),
-  realRename: undefined as
-    | typeof import("node:fs/promises").rename
-    | undefined,
+  realRename: undefined as typeof import("node:fs/promises").rename | undefined,
 }));
 
 vi.mock("node:fs/promises", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("node:fs/promises")>();
+  const actual = await importOriginal<typeof import("node:fs/promises")>();
   fsState.realRename = actual.rename;
   return { ...actual, rename: fsState.renameMock };
 });

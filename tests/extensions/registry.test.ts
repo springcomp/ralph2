@@ -5,16 +5,16 @@ import { describe, expect, it } from "vitest";
 import type { StagePlan } from "../../src/config/compiler.js";
 import type { ProcessResult } from "../../src/core/process-runner.js";
 import type { TaskSource } from "../../src/core/task.js";
-import type { PlaceholderContext } from "../../src/placeholders/placeholders.js";
 import { scheduleTaskAction } from "../../src/extensions/actions/schedule-task.js";
+import { repeatedFailureSignatureCircuitBreaker } from "../../src/extensions/circuit-breakers/repeated-failure-signature.js";
+import { acceptedExitCodePredicate } from "../../src/extensions/predicates/accepted-exit-code.js";
+import { fileExistsPredicate } from "../../src/extensions/predicates/file-exists.js";
+import { fileMissingPredicate } from "../../src/extensions/predicates/file-missing.js";
 import {
   createExtensionRegistry,
   defaultExtensionRegistry,
 } from "../../src/extensions/registry.js";
-import { acceptedExitCodePredicate } from "../../src/extensions/predicates/accepted-exit-code.js";
-import { fileExistsPredicate } from "../../src/extensions/predicates/file-exists.js";
-import { fileMissingPredicate } from "../../src/extensions/predicates/file-missing.js";
-import { repeatedFailureSignatureCircuitBreaker } from "../../src/extensions/circuit-breakers/repeated-failure-signature.js";
+import type { PlaceholderContext } from "../../src/placeholders/placeholders.js";
 
 describe("extension registry - built-in templates", () => {
   it("registers the goal template", () => {
@@ -176,12 +176,12 @@ describe("file predicates", () => {
         path: join(directory, "missing"),
       }),
     ).resolves.toBe(true);
-    await expect(
-      fileExistsPredicate.callback({ ...context }),
-    ).resolves.toBe(false);
-    await expect(
-      fileMissingPredicate.callback({ ...context }),
-    ).resolves.toBe(true);
+    await expect(fileExistsPredicate.callback({ ...context })).resolves.toBe(
+      false,
+    );
+    await expect(fileMissingPredicate.callback({ ...context })).resolves.toBe(
+      true,
+    );
 
     await rm(directory, { recursive: true, force: true });
   });

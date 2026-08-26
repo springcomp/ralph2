@@ -6,10 +6,7 @@ import type {
 } from "../config/compiler.js";
 import type { CoreContext, Guard, WorkSource } from "../core/plan.js";
 import type { ProcessResult } from "../core/process-runner.js";
-import type {
-  TaskDocumentReader,
-  TaskSource,
-} from "../core/task.js";
+import type { TaskDocumentReader, TaskSource } from "../core/task.js";
 import type { PlaceholderContext } from "../placeholders/placeholders.js";
 import type { ExtensionRegistry } from "./registry.js";
 
