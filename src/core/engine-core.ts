@@ -81,6 +81,17 @@ export class CoreEngine {
             events,
           );
         }
+        let rootId: string;
+        try {
+          rootId = (await this.source.remediationDepth(task)).rootId;
+        } catch (error) {
+          return this.result(
+            "blocked",
+            this.message(error),
+            iteration - 1,
+            events,
+          );
+        }
         const ctx: PipelineContext = {
           ...plan.context?.({
             workspace: plan.workspace,
@@ -94,6 +105,7 @@ export class CoreEngine {
           signal: options.signal,
           model: task.model ?? options.model,
           agent: task.agent ?? options.agent,
+          root: rootId,
           runner: this.runner,
           source: this.source,
           expand: (value: string) => this.expander.expand(value, ctx as never),

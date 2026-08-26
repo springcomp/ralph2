@@ -249,6 +249,9 @@ export function lowerSteps(
     });
     const runVerify = verifyStep.run;
     verifyStep.run = async (ctx) => {
+      // Verification is only needed when agent work left its assigned task
+      // unchecked. Do not invoke a second harness after task completion.
+      if (!(await source.isTaskUnchecked(ctx.task))) return { success: true };
       const result = await runVerify(ctx);
       if (result.success && (await source.isTaskUnchecked(ctx.task)))
         return {

@@ -108,7 +108,10 @@ describe("step lowering", () => {
         { exitCode: 0, signal: null, timedOut: false, cancelled: false },
         { exitCode: 0, signal: null, timedOut: false, cancelled: false },
       ]);
-      const steps = lowerSteps(workflow, source());
+      const steps = lowerSteps(
+        workflow,
+        source({ isTaskUnchecked: vi.fn(async () => true) }),
+      );
 
       await steps[0].run({ workspace: root, iteration: 2, task, runner });
 
@@ -138,6 +141,31 @@ describe("step lowering", () => {
           "utf8",
         ),
       ).toBe("Verify Do work");
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("skips verification harness when agent already checked its task", async () => {
+    const root = await mkdtemp(join(tmpdir(), "ralph-verify-skip-"));
+    try {
+      const workflow = plan(root, {
+        verification: {
+          requireTaskChecked: true,
+          retries: 1,
+          prompt: "Verify {TASK}",
+        },
+      });
+      const runner = new FakeProcessRunner([]);
+      const steps = lowerSteps(workflow, source());
+
+      await expect(
+        steps.at(-1)?.run({ workspace: root, iteration: 1, task, runner }),
+      ).resolves.toEqual({ success: true });
+      expect(runner.requests).toHaveLength(0);
+      await expect(
+        readFile(join(root, ".agentic", "__verification.prompt.md"), "utf8"),
+      ).rejects.toMatchObject({ code: "ENOENT" });
     } finally {
       await rm(root, { recursive: true, force: true });
     }
@@ -173,7 +201,11 @@ describe("step lowering", () => {
         { exitCode: 0, signal: null, timedOut: false, cancelled: false },
       ]);
       const events: string[] = [];
-      const steps = lowerSteps(workflow, source(), undefined);
+      const steps = lowerSteps(
+        workflow,
+        source({ isTaskUnchecked: vi.fn(async () => true) }),
+        undefined,
+      );
       expect(steps.map((step) => [step.name, step.role])).toEqual([
         ["harness", "harness"],
         ["post", "post"],

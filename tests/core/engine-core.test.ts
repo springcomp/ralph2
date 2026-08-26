@@ -78,6 +78,46 @@ describe("CoreEngine", () => {
     }
   });
 
+  it("sets root to originating task for remediation stages", async () => {
+    const workspace = await mkdtemp(join(tmpdir(), "ralph-core-root-"));
+    const remediation: Task = {
+      ...task,
+      typ: "VERIFY",
+      num: "001",
+      id: "VERIFY-001",
+      description: "Verify TASK-001 (parent: TASK-001)",
+      rawLine: "- [ ] VERIFY-001 - Verify TASK-001 (parent: TASK-001)",
+    };
+    try {
+      let root: unknown;
+      const taskSource: TaskSource = {
+        ...source([]),
+        remediationDepth: async () => ({ depth: 1, rootId: "TASK-001" }),
+      };
+      const plan: CorePlan = {
+        workspace,
+        maxIterations: 1,
+        source: { ...taskSource, pull: async () => remediation },
+        steps: [
+          {
+            ...step(true),
+            run: async (ctx) => {
+              root = ctx.root;
+              return { success: true };
+            },
+          },
+        ],
+        guards: [],
+        status: () => "working",
+      };
+
+      await new CoreEngine(new FakeProcessRunner(), taskSource).run(plan);
+      expect(root).toBe("TASK-001");
+    } finally {
+      await rm(workspace, { recursive: true, force: true });
+    }
+  });
+
   it("supports the async engine entry point", async () => {
     const workspace = await mkdtemp(join(tmpdir(), "ralph-core-async-"));
     try {
