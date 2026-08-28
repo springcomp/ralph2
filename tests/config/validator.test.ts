@@ -137,6 +137,7 @@ describe("validateWorkflow", () => {
         ...validBaseDoc,
         goal: ".agentic/GOAL.md",
         tasks: { ...validBaseDoc.tasks, completion: "engine" },
+        verification: { requireTaskChecked: false },
       }),
     ).toHaveLength(0);
     const diagnostics = validateWorkflow({
@@ -144,6 +145,37 @@ describe("validateWorkflow", () => {
       tasks: { ...validBaseDoc.tasks, completion: "workflow" },
     });
     expect(diagnostics.map((d) => d.path)).toContain("tasks.completion");
+  });
+
+  it("rejects engine-owned completion combined with requireTaskChecked", () => {
+    // requireTaskChecked defaults to true, so engine completion without an
+    // explicit `verification.requireTaskChecked: false` is a conflict: the
+    // synthesized verify step would always report the task unchecked and block
+    // the run after the first task.
+    const defaulted = validateWorkflow({
+      ...validBaseDoc,
+      tasks: { ...validBaseDoc.tasks, completion: "engine" },
+    });
+    expect(defaulted.map((diag) => diag.path)).toContain(
+      "verification.requireTaskChecked",
+    );
+
+    const explicitTrue = validateWorkflow({
+      ...validBaseDoc,
+      tasks: { ...validBaseDoc.tasks, completion: "engine" },
+      verification: { requireTaskChecked: true },
+    });
+    expect(explicitTrue.map((diag) => diag.path)).toContain(
+      "verification.requireTaskChecked",
+    );
+
+    // Agent-owned completion (the default) with requireTaskChecked is fine.
+    expect(
+      validateWorkflow({
+        ...validBaseDoc,
+        verification: { requireTaskChecked: true },
+      }),
+    ).toHaveLength(0);
   });
 
   it("accepts a boolean pty field on a command and rejects non-boolean values", () => {

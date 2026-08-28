@@ -305,6 +305,7 @@ describe("compileWorkflow", () => {
         prompt: "tasks/prompt.md",
         completion: "engine",
       },
+      verification: { requireTaskChecked: false },
       trigger: { kind: "taskAppears" },
     };
     const plan = compileWorkflow(document, "/mock/project");
@@ -338,6 +339,7 @@ describe("compileWorkflow", () => {
         prompt: "tasks/prompt.md",
         completion: "engine",
       },
+      verification: { requireTaskChecked: false },
     };
     const plan = compileWorkflow(doc, "/mock/project");
     expect(plan.tasks.queue).toBe(

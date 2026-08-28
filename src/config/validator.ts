@@ -201,6 +201,24 @@ function semanticDiagnostics(
   if (defs && typeof defs === "object" && string(defs.statusFormat))
     placeholders("defaults.statusFormat", [defs.statusFormat], d);
 
+  // Engine-owned completion checks the task itself after the pipeline, so the
+  // agent never marks its assigned task done. A synthesized `verify` step
+  // (requireTaskChecked, on by default) would therefore always report the task
+  // unchecked and block the run after the first task. Reject the combination.
+  if (
+    document.tasks &&
+    typeof document.tasks === "object" &&
+    document.tasks.completion === "engine" &&
+    (!document.verification ||
+      typeof document.verification !== "object" ||
+      document.verification.requireTaskChecked !== false)
+  )
+    d.push({
+      path: "verification.requireTaskChecked",
+      message:
+        "must be false when tasks.completion is 'engine' (engine-owned completion checks the task after the pipeline; requireTaskChecked would always fail and block the run after the first task)",
+    });
+
   return d;
 }
 

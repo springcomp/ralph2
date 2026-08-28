@@ -88,7 +88,15 @@ export async function run(
           lastFailure: failure,
         };
       }
-      if (scheduledResult !== "scheduled") return scheduledResult as never;
+      if (scheduledResult !== "scheduled")
+        // A scheduler that resolves to a full run result (e.g. remediation
+        // attempts exhausted, or an unregistered action) terminates the run.
+        return {
+          terminal: true,
+          status: "blocked",
+          message: scheduledResult.message,
+          lastFailure: failure,
+        };
       scheduled = true;
       break;
     }
