@@ -338,11 +338,11 @@ export function compileWorkflow(
     harnesses,
     defaultHarness: options.harness ?? text(defaults.harness),
     model:
-      options.model !== undefined
+      typeof options.model === "string" && options.model.trim()
         ? options.model
         : text(defaults.model) || null,
     agent:
-      options.agent !== undefined
+      typeof options.agent === "string" && options.agent.trim()
         ? options.agent
         : text(defaults.agent) || null,
     preAgent: (document.preAgent ?? []).map((x, i) =>

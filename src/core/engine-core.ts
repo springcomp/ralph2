@@ -92,19 +92,38 @@ export class CoreEngine {
             events,
           );
         }
-        const ctx: PipelineContext = {
-          ...plan.context?.({
-            workspace: plan.workspace,
-            iteration,
-            task,
-            signal: options.signal,
-          }),
+        const baseContext = plan.context?.({
           workspace: plan.workspace,
           iteration,
           task,
           signal: options.signal,
-          model: task.model ?? options.model,
-          agent: task.agent ?? options.agent,
+        });
+        const ctx: PipelineContext = {
+          ...baseContext,
+          workspace: plan.workspace,
+          iteration,
+          task,
+          signal: options.signal,
+          model:
+            (typeof task.model === "string" && task.model.trim()
+              ? task.model
+              : undefined) ??
+            (typeof options.model === "string" && options.model.trim()
+              ? options.model
+              : undefined) ??
+            (typeof baseContext?.model === "string" && baseContext.model.trim()
+              ? baseContext.model
+              : undefined),
+          agent:
+            (typeof task.agent === "string" && task.agent.trim()
+              ? task.agent
+              : undefined) ??
+            (typeof options.agent === "string" && options.agent.trim()
+              ? options.agent
+              : undefined) ??
+            (typeof baseContext?.agent === "string" && baseContext.agent.trim()
+              ? baseContext.agent
+              : undefined),
           root: rootId,
           runner: this.runner,
           source: this.source,
