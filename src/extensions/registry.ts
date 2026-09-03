@@ -78,7 +78,6 @@ export interface ExtensionRegistry {
 import { TriggerWorkSource } from "../config/lowering/worksource.js";
 import type { CoreContext, Guard } from "../core/plan.js";
 import { scheduleTaskAction } from "./actions/schedule-task.js";
-import { addTaskMessage } from "./messages/add-task.js";
 import { noProgressCircuitBreaker } from "./circuit-breakers/no-progress.js";
 import { repeatedFailureSignatureCircuitBreaker } from "./circuit-breakers/repeated-failure-signature.js";
 import { acceptedExitCodePredicate } from "./predicates/accepted-exit-code.js";
@@ -93,8 +92,6 @@ import type {
 } from "./types.js";
 
 const actions: readonly ActionRegistration[] = [scheduleTaskAction];
-
-const messages: readonly MessageRegistration[] = [addTaskMessage];
 
 const predicates: readonly PredicateRegistration[] = [
   fileExistsPredicate,
@@ -209,7 +206,6 @@ export function createExtensionRegistry(
     ...(extra.triggers ?? []),
   ];
   const registeredMessages = [
-    ...messages,
     ...registeredTemplates.flatMap((t) => t.messages ?? []),
     ...(extra.messages ?? []),
   ];

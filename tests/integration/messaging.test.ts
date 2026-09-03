@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import type { WorkflowPlan } from "../../src/config/compiler.js";
 import { lowerWorkSource } from "../../src/config/lowering/worksource.js";
-import { addTaskMessage } from "../../src/extensions/messages/add-task.js";
+import { addTaskMessage } from "../../src/extensions/templates/blueprint/add-task.js";
 import { defaultExtensionRegistry } from "../../src/extensions/registry.js";
 import { MarkdownTaskSource } from "../../src/task-source/markdown-task-source.js";
 

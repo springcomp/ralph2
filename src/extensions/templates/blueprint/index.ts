@@ -5,6 +5,7 @@ import {
 import type { TemplateRegistration } from "../../registry.js";
 import type { ContinuationLowering } from "../../types.js";
 import { goalTemplateRegistration } from "../goal.js";
+import { addTaskMessage } from "./add-task.js";
 import { taskAppearsTrigger } from "./task-appears.js";
 
 const blueprintYaml = `schemaVersion: 1
@@ -167,5 +168,6 @@ export const blueprintTemplateRegistration: TemplateRegistration = {
   name: "blueprint",
   files,
   triggers: [taskAppearsTrigger],
+  messages: [addTaskMessage],
   continuationLowerings: [blueprintContinuationLowering],
 };

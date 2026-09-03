@@ -1,5 +1,5 @@
-import { MarkdownTaskSource } from "../../task-source/markdown-task-source.js";
-import type { MessageRegistration } from "../registry.js";
+import { MarkdownTaskSource } from "../../../task-source/markdown-task-source.js";
+import type { MessageRegistration } from "../../registry.js";
 
 export const addTaskMessage: MessageRegistration = {
   name: "addTask",

@@ -92,11 +92,17 @@ describe("extension registry - built-in templates", () => {
     expect(defaultExtensionRegistry.template("goal")?.triggers).toBeUndefined();
   });
 
-  it("registers the built-in addTask message", () => {
+  it("blueprint template owns the addTask message", () => {
+    const blueprint = defaultExtensionRegistry.template("blueprint");
+    expect(blueprint?.messages?.map((message) => message.name)).toContain(
+      "addTask",
+    );
     expect(defaultExtensionRegistry.message("addTask")).toBeDefined();
     expect(defaultExtensionRegistry.message("ADDTASK")).toBeDefined();
     expect(defaultExtensionRegistry.message("notReal")).toBeUndefined();
+    expect(defaultExtensionRegistry.template("goal")?.messages).toBeUndefined();
   });
+
 
   it("blueprint template configures a taskAppears trigger watching BLUEPRINT.md", () => {
     const yaml =
