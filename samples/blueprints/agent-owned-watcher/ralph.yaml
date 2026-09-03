@@ -16,7 +16,7 @@ harnesses:
   stunt:
     executable: node
     arguments:
-      - "{WORKSPACE}/../../dist/stunt/index.js"
+      - "{WORKSPACE}/../../../dist/stunt/index.js"
       - --queue
       - "{QUEUE}"
       - --check
@@ -40,3 +40,8 @@ continuation:
   kind: blueprint
   source: BLUEPRINT.md
   completeWhenSourceExhausted: true
+
+trigger:
+  kind: taskAppears
+  source: BLUEPRINT.md
+  pollInterval: 20s

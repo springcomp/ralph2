@@ -26,3 +26,8 @@ Which are two instances of `(source, predicate)` pairs.
 
 - Task source: `goal` generates its next task ( producer  +  nextTask ); `blueprint` pulls it from a file ( `seedBlueprintTask` ).
 - Completion predicate: `goal` uses  `completeWhen` ; `blueprint` uses "source exhausted."
+
+
+# Fake harness
+
+`stunt` is a fake harness for test / integration purposes in `src/stunt/**`.
