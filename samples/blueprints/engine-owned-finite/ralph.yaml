@@ -1,0 +1,42 @@
+schemaVersion: 1
+
+workspace: .
+maxIterations: 20
+
+tasks:
+  format: markdown
+  queue: queue.md
+  progress: progress.txt
+  prompt: ralph.prompt.md
+  completion: engine
+
+defaults:
+  harness: stunt
+
+harnesses:
+  stunt:
+    executable: node
+    arguments:
+      - "{WORKSPACE}/../../../dist/stunt/index.js"
+      - --queue
+      - "{QUEUE}"
+    timeout: 30s
+    successExitCodes: [0]
+    output:
+      combined: __agent.log
+
+preAgent: []
+postAgent: []
+
+verification:
+  requireTaskChecked: false
+  retries: 1
+  prompt: |
+    Task: {TASK}
+
+    Verify work complete. Check task in the queue if complete, or document blockers in progress.txt.
+
+continuation:
+  kind: blueprint
+  source: BLUEPRINT.md
+  completeWhenSourceExhausted: true

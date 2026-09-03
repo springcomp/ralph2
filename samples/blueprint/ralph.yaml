@@ -1,67 +1,32 @@
 schemaVersion: 1
 
-workspace: ..
+workspace: .
 maxIterations: 100
 
 tasks:
   format: markdown
-  queue: .agentic/queue.md
-  progress: .agentic/progress.txt
-  prompt: .agentic/ralph.prompt.md
-  completionSignal: <ralph>COMPLETE</ralph>
-  metadata:
-    model: model
-    agent: agent
+  queue: queue.md
+  progress: progress.txt
+  prompt: ralph.prompt.md
 
 defaults:
-  harness: pi
-  model: openrouter/anthropic/claude-haiku-4.5
-  agent: null
+  harness: stunt
 
 harnesses:
-  pi:
-    executable: pi
+  stunt:
+    executable: node
     arguments:
-      - --model
-      - "{MODEL}"
-      - -p
-      - "Follow instructions from {PROMPT} queue={QUEUE} progress={PROGRESS}"
-    conditionalArguments:
-      - whenSet: AGENT
-        arguments:
-          - --agent
-          - "{AGENT}"
-    timeout: 30m
+      - "{WORKSPACE}/../../dist/stunt/index.js"
+      - --queue
+      - "{QUEUE}"
+      - --check
+    timeout: 30s
     successExitCodes: [0]
     output:
-      combined: .agentic/__agent.log
+      combined: __agent.log
 
 preAgent: []
-
-postAgent:
-  - name: build
-    executable: node
-    arguments:
-      - "{WORKSPACE}/.agentic/scripts/build.cjs"
-    timeout: 10m
-    successExitCodes: [0]
-    output:
-      combined: .agentic/__build.log
-    onFailure:
-      action: scheduleTask
-      task: "- [ ] FIX-{ITERATION:000} - Build failed; inspect __build.log"
-
-  - name: test
-    executable: node
-    arguments:
-      - "{WORKSPACE}/.agentic/scripts/test.cjs"
-    timeout: 20m
-    successExitCodes: [0]
-    output:
-      combined: .agentic/__test.log
-    onFailure:
-      action: scheduleTask
-      task: "- [ ] FIX-{ITERATION:000} - Unit tests failed; inspect __test.log"
+postAgent: []
 
 verification:
   requireTaskChecked: true
@@ -69,17 +34,9 @@ verification:
   prompt: |
     Task: {TASK}
 
-    Deterministic checks passed, but the task is still unchecked in PRD.
-    Verify whether the work is complete. Check the task if complete, or document
-    blockers in progress.txt.
+    Verify work complete. Check task in the queue if complete, or document blockers in progress.txt.
 
 continuation:
   kind: blueprint
-  source: .agentic/BLUEPRINT.md
-  seedPrdFromSource: true
+  source: BLUEPRINT.md
   completeWhenSourceExhausted: true
-
-trigger:
-  kind: taskAppears
-  source: .agentic/BLUEPRINT.md
-  pollInterval: 60s

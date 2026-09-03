@@ -22,7 +22,6 @@ export interface TaskFilesDto {
   prd?: unknown;
   progress?: unknown;
   prompt?: unknown;
-  completionSignal?: unknown;
   completion?: unknown;
   metadata?: { model?: unknown; agent?: unknown } | null;
 }

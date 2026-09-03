@@ -71,7 +71,6 @@ describe("generated goal empty queue integration", () => {
           queue: "queue.md",
           progress: "progress.txt",
           prompt: "prompt.md",
-          completionSignal: "",
           completion: "engine",
         },
         defaults: { harness: "fake", statusFormat: "{TASK}" },

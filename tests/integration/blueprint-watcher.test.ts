@@ -38,12 +38,10 @@ describe("blueprint watcher queue integration", () => {
         prd: queuePath,
         progress: join(workspace, "progress.txt"),
         prompt: join(workspace, "prompt.md"),
-        completionSignal: "",
       },
       continuation: {
         kind: "blueprint",
         source: blueprintPath,
-        seedPrdFromSource: true,
         completeWhenSourceExhausted: true,
       },
       trigger: {

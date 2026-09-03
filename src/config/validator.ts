@@ -196,6 +196,14 @@ function semanticDiagnostics(
     }
     if (string(contDto.nextTask))
       placeholders("continuation.nextTask", [contDto.nextTask], d);
+    // Blueprint continuations always seed from source now; the flag that
+    // used to gate it made BLUEPRINT.md silently inert when left unset.
+    if (contDto.kind === "blueprint" && contDto.seedPrdFromSource !== undefined)
+      d.push({
+        path: "continuation.seedPrdFromSource",
+        message:
+          "is no longer configurable; blueprint continuations always seed from source. Remove this field.",
+      });
   }
 
   if (defs && typeof defs === "object" && string(defs.statusFormat))

@@ -2,3 +2,5 @@ bootstrap/
 coverage/
 dist/
 node_modules/
+samples/**/.agentic/
+samples/**/__*.log

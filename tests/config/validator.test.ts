@@ -207,6 +207,20 @@ describe("validateWorkflow", () => {
     expect(validateWorkflow(doc)).toHaveLength(0);
   });
 
+  it("rejects seedPrdFromSource on a blueprint continuation", () => {
+    const doc = {
+      ...validBaseDoc,
+      continuation: {
+        kind: "blueprint",
+        source: ".agentic/BLUEPRINT.md",
+        seedPrdFromSource: false,
+      },
+    };
+    expect(validateWorkflow(doc).map((d) => d.path)).toContain(
+      "continuation.seedPrdFromSource",
+    );
+  });
+
   it("validates valid generatedGoal continuation", () => {
     const doc = {
       ...validBaseDoc,

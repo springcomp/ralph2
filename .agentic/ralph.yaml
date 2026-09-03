@@ -8,7 +8,6 @@ tasks:
   prd: .agentic/PRD.md
   progress: .agentic/progress.txt
   prompt: .agentic/ralph.prompt.md
-  completionSignal: <ralph>COMPLETE</ralph>
   metadata:
     model: model
     agent: agent
@@ -106,5 +105,4 @@ verification:
 continuation:
   kind: blueprint
   source: .agentic/BLUEPRINT.md
-  seedPrdFromSource: true
   completeWhenSourceExhausted: true

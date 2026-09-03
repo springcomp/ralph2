@@ -13,7 +13,6 @@ tasks:
   queue: .agentic/queue.md
   progress: .agentic/progress.txt
   prompt: .agentic/ralph.prompt.md
-  completionSignal: <ralph>COMPLETE</ralph>
   metadata:
     model: model
     agent: agent

@@ -122,7 +122,6 @@ export function workflowSchema(registry: ExtensionRegistry): JsonSchema {
           prd: { type: "string", minLength: 1 },
           progress: { type: "string", minLength: 1 },
           prompt: { type: "string", minLength: 1 },
-          completionSignal: { type: "string" },
           completion: { enum: ["agent", "engine"] },
           metadata: { type: "object" },
         },

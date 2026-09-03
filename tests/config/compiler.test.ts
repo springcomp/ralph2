@@ -21,7 +21,6 @@ describe("compileWorkflow", () => {
       prd: "tasks/PRD.md",
       progress: "tasks/progress.txt",
       prompt: "tasks/prompt.md",
-      completionSignal: "<DONE>",
     },
     defaults: {
       harness: "pi",
@@ -77,7 +76,6 @@ describe("compileWorkflow", () => {
     continuation: {
       kind: "blueprint",
       source: "tasks/BLUEPRINT.md",
-      seedPrdFromSource: true,
       completeWhenSourceExhausted: true,
     },
   };
@@ -98,7 +96,6 @@ describe("compileWorkflow", () => {
     expect(plan.model).toBe("test-model");
     expect(plan.agent).toBe("test-agent");
     expect(plan.tasks.prd).toBe(resolve("/mock/project/work-dir/tasks/PRD.md"));
-    expect(plan.tasks.completionSignal).toBe("<DONE>");
     expect(plan.harnesses.pi).toBeDefined();
     expect(plan.harnesses.pi.timeoutMs).toBe(900000);
     expect(plan.harnesses.pi.successExitCodes).toEqual([0, 1]);
@@ -124,7 +121,6 @@ describe("compileWorkflow", () => {
     expect(plan.verification.retries).toBe(2);
     expect(plan.verification.prompt).toBe("Verify {TASK}");
     expect(plan.continuation?.kind).toBe("blueprint");
-    expect(plan.continuation?.seedPrdFromSource).toBe(true);
     expect(plan.continuation?.completeWhenSourceExhausted).toBe(true);
   });
 

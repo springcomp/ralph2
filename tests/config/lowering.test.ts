@@ -59,7 +59,6 @@ const plan = (
     prd: join(root, "PRD.md"),
     progress: "",
     prompt: "",
-    completionSignal: "",
   },
   harnesses: { harness: stage("harness") },
   defaultHarness: "harness",
@@ -94,7 +93,6 @@ describe("step lowering", () => {
           prd: join(root, "PRD.md"),
           progress: join(root, "progress.txt"),
           prompt: promptPath,
-          completionSignal: "",
         },
         goalPath: join(root, "GOAL.md"),
         harnesses: { harness: stage("harness", { arguments: ["{PROMPT}"] }) },
@@ -325,7 +323,6 @@ describe("work-source lowering", () => {
     const workflow = plan("C:\\workspace", {
       continuation: {
         kind: "custom",
-        seedPrdFromSource: false,
         completeWhenSourceExhausted: false,
       },
     });
@@ -395,7 +392,6 @@ describe("work-source lowering", () => {
         producer: stage("producer"),
         completeWhen: { kind: "done" },
         nextTask: "next {TASK}",
-        seedPrdFromSource: false,
         completeWhenSourceExhausted: false,
       },
     });
@@ -517,7 +513,6 @@ describe("work-source lowering", () => {
       continuation: {
         kind: "blueprint",
         source: "blueprint.md",
-        seedPrdFromSource: true,
         completeWhenSourceExhausted: true,
       },
       trigger: { kind: "wait", source: "PRD.md", pollIntervalMs: 1 },
@@ -572,11 +567,10 @@ describe("work-source lowering", () => {
       }),
     });
     const workflow = plan("C:\\workspace", {
-      tasks: { prd: prdPath, progress: "", prompt: "", completionSignal: "" },
+      tasks: { prd: prdPath, progress: "", prompt: "" },
       continuation: {
         kind: "blueprint",
         source: blueprintPath,
-        seedPrdFromSource: true,
         completeWhenSourceExhausted: true,
       },
       trigger: {

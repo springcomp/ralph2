@@ -58,7 +58,6 @@ export interface TaskFileSet {
   prd: string;
   progress: string;
   prompt: string;
-  completionSignal: string;
   completion?: "agent" | "engine";
 }
 export interface TriggerPlan {
@@ -96,7 +95,6 @@ export interface WorkflowPlan {
     [key: string]: unknown;
     kind: string;
     source?: string;
-    seedPrdFromSource: boolean;
     completeWhenSourceExhausted: boolean;
     seedTask?: string;
     nextTask?: string;
@@ -235,7 +233,6 @@ export function compileWorkflow(
         ...continuationDto,
         kind: text(continuationDto.kind),
         source: path(workspace, continuationDto.source),
-        seedPrdFromSource: continuationDto.seedPrdFromSource === true,
         completeWhenSourceExhausted:
           continuationDto.completeWhenSourceExhausted === true,
         seedTask: text(continuationDto.seedTask) || undefined,
@@ -332,7 +329,6 @@ export function compileWorkflow(
       prd: canonicalQueuePath,
       progress: path(workspace, tasks.progress) ?? "",
       prompt: path(workspace, tasks.prompt) ?? "",
-      completionSignal: text(tasks.completionSignal),
       completion: tasks.completion === "engine" ? "engine" : "agent",
     },
     harnesses,

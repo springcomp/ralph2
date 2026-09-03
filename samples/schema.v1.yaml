@@ -60,8 +60,6 @@ properties:
       prompt:
         type: string
         minLength: 1
-      completionSignal:
-        type: string
       metadata:
         type: object
   defaults:

@@ -17,7 +17,6 @@ tasks:
   queue: .agentic/queue.md
   progress: .agentic/progress.txt
   prompt: .agentic/ralph.prompt.md
-  completionSignal: <ralph>COMPLETE</ralph>
   metadata:
     model: model
     agent: agent
@@ -59,7 +58,6 @@ verification:
 continuation:
   kind: blueprint
   source: .agentic/BLUEPRINT.md
-  seedPrdFromSource: true
   completeWhenSourceExhausted: true
 
 trigger:
@@ -147,17 +145,15 @@ export const blueprintContinuationLowering: ContinuationLowering = {
     required: ["source"],
     properties: {
       source: { type: "string", minLength: 1 },
-      seedPrdFromSource: { type: "boolean" },
       completeWhenSourceExhausted: { type: "boolean" },
     },
   },
   lower: (dto, ctx) => {
     const continuation = dto as {
       source?: string;
-      seedPrdFromSource?: boolean;
       completeWhenSourceExhausted?: boolean;
     };
-    return continuation.source && continuation.seedPrdFromSource
+    return continuation.source
       ? new ChainedWorkSource(
           [ctx.base, new BlueprintRefill(ctx.source, continuation.source)],
           continuation.completeWhenSourceExhausted ? "complete" : "blocked",
