@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { Task, TaskDocumentReader } from "../../src/core/task.js";
-import { taskAppearsTrigger } from "../../src/extensions/templates/blueprint/task-appears.js";
+import { taskAppearsTrigger } from "../../src/extensions/templates/blueprint/task-appears-trigger.js";
 import type { TriggerContext } from "../../src/extensions/types.js";
 
 const task: Task = {

@@ -1,4 +1,4 @@
-import type { ActionRegistration } from "../registry.js";
+import type { ActionRegistration } from "../../registry.js";
 
 export const scheduleTaskAction: ActionRegistration = {
   name: "scheduleTask",

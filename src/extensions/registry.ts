@@ -77,12 +77,11 @@ export interface ExtensionRegistry {
 
 import { TriggerWorkSource } from "../config/lowering/worksource.js";
 import type { CoreContext, Guard } from "../core/plan.js";
-import { scheduleTaskAction } from "./actions/schedule-task.js";
 import { noProgressCircuitBreaker } from "./circuit-breakers/no-progress.js";
 import { repeatedFailureSignatureCircuitBreaker } from "./circuit-breakers/repeated-failure-signature.js";
-import { acceptedExitCodePredicate } from "./predicates/accepted-exit-code.js";
-import { fileExistsPredicate } from "./predicates/file-exists.js";
-import { fileMissingPredicate } from "./predicates/file-missing.js";
+import { acceptedExitCodePredicate } from "./predicates/accepted-exit-code-predicate.js";
+import { fileExistsPredicate } from "./predicates/file-exists-predicate.js";
+import { fileMissingPredicate } from "./predicates/file-missing-predicate.js";
 import { blueprintTemplateRegistration } from "./templates/blueprint/index.js";
 import { goalTemplateRegistration } from "./templates/goal.js";
 import type {
@@ -91,7 +90,7 @@ import type {
   TriggerLowering,
 } from "./types.js";
 
-const actions: readonly ActionRegistration[] = [scheduleTaskAction];
+const actions: readonly ActionRegistration[] = [];
 
 const predicates: readonly PredicateRegistration[] = [
   fileExistsPredicate,
