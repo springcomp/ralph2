@@ -43,6 +43,7 @@ export interface CommandDto {
   successExitCodes?: unknown;
   output?: { combined?: unknown } | null;
   onFailure?: { action?: unknown; task?: unknown } | null;
+  onSuccess?: { message?: unknown; target?: unknown; task?: unknown } | null;
   pty?: unknown;
   mandatory?: unknown;
   result?: { path?: unknown; required?: unknown } | null;

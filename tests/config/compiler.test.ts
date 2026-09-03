@@ -50,6 +50,11 @@ describe("compileWorkflow", () => {
           action: "scheduleTask",
           task: "Fix task",
         },
+        onSuccess: {
+          message: "addTask",
+          target: "../watcher/BLUEPRINT.md",
+          task: "- [ ] MSG-001 - hi",
+        },
         failurePolicy: "continue",
       },
     },
@@ -101,6 +106,11 @@ describe("compileWorkflow", () => {
     expect(plan.harnesses.pi.successExitCodes).toEqual([0, 1]);
     expect(plan.harnesses.pi.failurePolicy).toBe("continue");
     expect(plan.harnesses.pi.failureTask).toBe("Fix task");
+    expect(plan.harnesses.pi.successMessage).toBe("addTask");
+    expect(plan.harnesses.pi.successTarget).toBe(
+      resolve("/mock/project/watcher/BLUEPRINT.md"),
+    );
+    expect(plan.harnesses.pi.successTask).toBe("- [ ] MSG-001 - hi");
     expect(plan.harnesses.pi.environment).toEqual([
       { name: "API_KEY", value: "secret123", secret: true },
       { name: "DEBUG", value: "true", secret: false },

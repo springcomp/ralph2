@@ -26,4 +26,7 @@ so making it optional was a footgun). Two axes remain worth demonstrating:
 
 See also [../blueprint-watcher](../blueprint-watcher/README.md) for the
 related but orthogonal `trigger: taskAppears` (resident, in-process waiting)
-pattern.
+pattern, and [addTask](addTask/README.md) for the send-side counterpart:
+an `onSuccess`/`messages` hook that delivers tasks into
+[agent-owned-watcher](agent-owned-watcher/README.md)'s BLUEPRINT.md from a
+separate, independently-running Ralph instance.

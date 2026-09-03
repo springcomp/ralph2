@@ -226,6 +226,13 @@ export function lowerSteps(
     name: stage.name,
     role,
     onFail: override ?? policy(stage, plan),
+    onSuccess: stage.successMessage
+      ? {
+          message: stage.successMessage,
+          target: stage.successTarget ?? "",
+          task: stage.successTask ?? "",
+        }
+      : undefined,
     stage,
     run: (ctx) =>
       runStage(stage, {

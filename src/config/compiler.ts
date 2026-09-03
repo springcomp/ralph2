@@ -46,6 +46,9 @@ export interface StagePlan {
   failureAction?: string;
   failureTask?: string;
   failurePolicy: "stop" | "continue";
+  successMessage?: string;
+  successTarget?: string;
+  successTask?: string;
   /** undefined = inherit workflow-level ptyDefault */
   pty?: boolean;
   mandatory?: boolean;
@@ -189,6 +192,9 @@ function stage(
     failureAction: text(dto.onFailure?.action) || undefined,
     failureTask: text(dto.onFailure?.task) || undefined,
     failurePolicy: dto.failurePolicy === "continue" ? "continue" : "stop",
+    successMessage: text(dto.onSuccess?.message) || undefined,
+    successTarget: path(workspace, dto.onSuccess?.target),
+    successTask: text(dto.onSuccess?.task) || undefined,
     pty: typeof dto.pty === "boolean" ? dto.pty : ptyDefault,
     mandatory: dto.mandatory !== false,
     resultPath: path(workspace, dto.result?.path),

@@ -107,6 +107,11 @@ describe("validateWorkflow", () => {
           action: "scheduleTask" as const,
           task: "Fix failure",
         },
+        onSuccess: {
+          message: "addTask" as const,
+          target: "../watcher/BLUEPRINT.md",
+          task: "- [ ] MSG-001 - hi",
+        },
       },
     },
   };
@@ -344,6 +349,11 @@ describe("validateWorkflow", () => {
             action: "invalidAction" as unknown as "scheduleTask",
             task: "",
           },
+          onSuccess: {
+            message: "invalidMessage" as unknown as "addTask",
+            target: "",
+            task: "",
+          },
         },
       ],
       postAgent: [
@@ -371,6 +381,9 @@ describe("validateWorkflow", () => {
     expect(paths).toContain("preAgent[1].environment[2].value[0]");
     expect(paths).toContain("preAgent[1].onFailure.action");
     expect(paths).toContain("preAgent[1].onFailure.task");
+    expect(paths).toContain("preAgent[1].onSuccess.message");
+    expect(paths).toContain("preAgent[1].onSuccess.target");
+    expect(paths).toContain("preAgent[1].onSuccess.task");
     expect(paths).toContain("postAgent[0].conditionalArguments");
     expect(paths).toContain("postAgent[0].environment");
   });

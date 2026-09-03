@@ -1,0 +1,67 @@
+schemaVersion: 1
+
+workspace: .
+maxIterations: 100
+
+tasks:
+  format: markdown
+  queue: queue.md
+  progress: progress.txt
+  prompt: ralph.prompt.md
+  completion: engine
+
+defaults:
+  harness: stunt
+
+harnesses:
+  stunt:
+    executable: node
+    arguments:
+      - "{WORKSPACE}/../../../dist/stunt/index.js"
+      - --queue
+      - "{QUEUE}"
+    timeout: 30s
+    successExitCodes: [0]
+    output:
+      combined: __agent.log
+
+preAgent: []
+
+postAgent:
+  - name: notifyWatcher
+    executable: node
+    arguments:
+      - -e
+      - process.exit(0)
+    successExitCodes: [0]
+    output:
+      combined: __notify.log
+    onSuccess:
+      message: addTask
+      target: "../agent-owned-watcher/BLUEPRINT.md"
+      task: "- [ ] MSG-{ITERATION:000} - Heartbeat from addTask sender at iteration {ITERATION}"
+
+verification:
+  requireTaskChecked: false
+  retries: 1
+  prompt: |
+    Task: {TASK}
+
+    Deterministic checks passed. Nothing further to verify for a heartbeat send.
+
+# completeWhen never becomes true (STOP.flag is never created), so this sender
+# keeps generating and sending one heartbeat task per iteration until maxIterations.
+continuation:
+  kind: generatedGoal
+  producer:
+    executable: node
+    arguments:
+      - -e
+      - process.exit(0)
+    timeout: 5s
+    successExitCodes: [0]
+  completeWhen:
+    kind: fileExists
+    path: STOP.flag
+  seedTask: "- [ ] SEND-001 - Send a heartbeat message to the watcher"
+  nextTask: "- [ ] SEND-{ITERATION:000} - Send a heartbeat message to the watcher"

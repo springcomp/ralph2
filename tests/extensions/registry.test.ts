@@ -92,6 +92,12 @@ describe("extension registry - built-in templates", () => {
     expect(defaultExtensionRegistry.template("goal")?.triggers).toBeUndefined();
   });
 
+  it("registers the built-in addTask message", () => {
+    expect(defaultExtensionRegistry.message("addTask")).toBeDefined();
+    expect(defaultExtensionRegistry.message("ADDTASK")).toBeDefined();
+    expect(defaultExtensionRegistry.message("notReal")).toBeUndefined();
+  });
+
   it("blueprint template configures a taskAppears trigger watching BLUEPRINT.md", () => {
     const yaml =
       defaultExtensionRegistry.template("blueprint")?.files.get("ralph.yaml") ??
@@ -351,6 +357,21 @@ describe("extension registry - custom registrations", () => {
         ],
       }),
     ).toThrow("Duplicate producer: GOALPRODUCER");
+  });
+
+  it("rejects duplicate message name (case-insensitive) against built-in", () => {
+    expect(() =>
+      createExtensionRegistry({
+        messages: [
+          {
+            name: "ADDTASK",
+            description: "dup",
+            properties: [],
+            callback: async () => undefined,
+          },
+        ],
+      }),
+    ).toThrow("Duplicate message: ADDTASK");
   });
 
   it("rejects blank template name", () => {

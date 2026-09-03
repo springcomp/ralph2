@@ -186,3 +186,92 @@ describe("pipeline run", () => {
     });
   });
 });
+
+describe("pipeline run onSuccess message hook", () => {
+  const successStep = (onSuccess: Step["onSuccess"]): Step => ({
+    name: "notify",
+    role: "post",
+    onFail: { kind: "stop" },
+    onSuccess,
+    run: async () => ({ success: true }),
+  });
+  const onSuccess = { message: "addTask", target: "BLUEPRINT.md", task: "- [ ] MSG-001 - hi" };
+
+  it("continues past a step whose message send resolves normally", async () => {
+    const sent: unknown[] = [];
+    const outcome = await run(
+      [successStep(onSuccess)],
+      ctx({
+        sendMessage: async (value) => {
+          sent.push(value);
+          return undefined;
+        },
+      }),
+      1,
+    );
+    expect(outcome).toMatchObject({ terminal: false });
+    expect(sent).toEqual([onSuccess]);
+  });
+
+  it("blocks when sendMessage is not available", async () => {
+    const outcome = await run([successStep(onSuccess)], ctx(), 1);
+    expect(outcome).toMatchObject({
+      terminal: true,
+      status: "blocked",
+      message: "Message 'addTask' is not available.",
+    });
+  });
+
+  it("blocks when sendMessage throws", async () => {
+    const outcome = await run(
+      [successStep(onSuccess)],
+      ctx({
+        sendMessage: async () => {
+          throw new Error("target unwritable");
+        },
+      }),
+      1,
+    );
+    expect(outcome).toMatchObject({
+      terminal: true,
+      status: "blocked",
+      message: "Message send failed: target unwritable",
+    });
+  });
+
+  it("terminates as blocked when sendMessage resolves to a run result", async () => {
+    const terminal = {
+      status: "blocked" as const,
+      message: "not registered",
+      iterations: 1,
+      events: [],
+      exitCode: 3,
+    };
+    const outcome = await run(
+      [successStep(onSuccess)],
+      ctx({ sendMessage: async () => terminal }),
+      1,
+    );
+    expect(outcome).toMatchObject({
+      terminal: true,
+      status: "blocked",
+      message: "not registered",
+    });
+  });
+
+  it("does not invoke sendMessage for a step without onSuccess", async () => {
+    let called = false;
+    const outcome = await run(
+      [step({ success: true }, { kind: "stop" })],
+      ctx({
+        sendMessage: async () => {
+          called = true;
+          return undefined;
+        },
+      }),
+      1,
+    );
+    expect(outcome).toMatchObject({ terminal: false });
+    expect(called).toBe(false);
+  });
+});

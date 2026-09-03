@@ -13,6 +13,9 @@ export interface PipelineContext extends CoreContext {
     policy: Extract<Policy, { kind: "schedule" }>,
     failure: StepFailure,
   ) => Promise<"scheduled" | WorkflowRunResult>;
+  readonly sendMessage?: (
+    onSuccess: NonNullable<Step["onSuccess"]>,
+  ) => Promise<WorkflowRunResult | undefined>;
 }
 
 const failureOutcome = (
@@ -47,7 +50,35 @@ export async function run(
         break;
       result = await step.run(ctx);
     }
-    if (result.success) continue;
+    if (result.success) {
+      if (step.onSuccess) {
+        if (!ctx.sendMessage)
+          return {
+            terminal: true,
+            status: "blocked",
+            message: `Message '${step.onSuccess.message}' is not available.`,
+          };
+        let sent: WorkflowRunResult | undefined;
+        try {
+          sent = await ctx.sendMessage(step.onSuccess);
+        } catch (error) {
+          return {
+            terminal: true,
+            status: "blocked",
+            message: `Message send failed: ${
+              error instanceof Error ? error.message : String(error)
+            }`,
+          };
+        }
+        if (sent)
+          return {
+            terminal: true,
+            status: "blocked",
+            message: sent.message,
+          };
+      }
+      continue;
+    }
     const failure: StepFailure = { step, result };
     lastFailure = failure;
     if (policy.kind === "continue") {

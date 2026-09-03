@@ -39,6 +39,7 @@ export type Policy =
 export interface Step {
   run(ctx: CoreContext): Promise<StepResult>;
   readonly onFail: Policy;
+  readonly onSuccess?: { message: string; target: string; task: string };
   readonly role: "pre" | "harness" | "post" | "verify";
   readonly name: string;
   readonly stage?: unknown;

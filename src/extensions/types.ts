@@ -29,6 +29,23 @@ export interface ActionContext {
 
 export type ActionCallback = (context: ActionContext) => Promise<void>;
 
+/**
+ * A message is the send-side counterpart to a trigger's wait-side: it fires
+ * when a pipeline stage's `onSuccess` hook names it, delivering work to a
+ * `target` (e.g. another Ralph instance's observed Markdown file). `target`
+ * and `task` are plain expanded strings so a future transport (e.g. grpc) can
+ * be registered under this same contract without changing the onSuccess shape.
+ */
+export interface MessageContext {
+  target: string;
+  task: string;
+  expand: (value: string) => string;
+  iteration: number;
+  emit: (event: ExtensionEvent) => Promise<void>;
+}
+
+export type MessageCallback = (context: MessageContext) => Promise<void>;
+
 export interface PredicateContext {
   path?: string;
   check?: StagePlan;

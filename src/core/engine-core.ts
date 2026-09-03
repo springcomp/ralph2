@@ -7,7 +7,7 @@ import { evaluateCircuitBreaker } from "./circuit-breaker.js";
 import { WorkflowExitCodes } from "./exit-codes.js";
 import { WorkspaceLock } from "./locks.js";
 import { type PipelineContext, run as runPipeline } from "./pipeline.js";
-import type { CoreContext, CorePlan, StepFailure } from "./plan.js";
+import type { CoreContext, CorePlan, Step, StepFailure } from "./plan.js";
 import type { ProcessRunner } from "./process-runner.js";
 import type { Task, TaskSource } from "./task.js";
 import type {
@@ -135,6 +135,8 @@ export class CoreEngine {
           emit,
           schedule: (policy, failure) =>
             this.schedule(plan, ctx, policy, failure, iteration, emit),
+          sendMessage: (onSuccess) =>
+            this.sendMessage(ctx, onSuccess, iteration, emit),
         };
         await emit({
           type: "task.started",
@@ -264,6 +266,29 @@ export class CoreEngine {
       emit,
     });
     return "scheduled";
+  }
+
+  private async sendMessage(
+    ctx: PipelineContext,
+    onSuccess: NonNullable<Step["onSuccess"]>,
+    iteration: number,
+    emit: (event: WorkflowEvent) => Promise<void>,
+  ): Promise<WorkflowRunResult | undefined> {
+    const registration = this.extensions.message(onSuccess.message);
+    if (!registration)
+      return this.result(
+        "blocked",
+        `Message '${onSuccess.message}' is not registered.`,
+        iteration,
+        [],
+      );
+    await registration.callback({
+      target: this.expander.expand(onSuccess.target, ctx as never),
+      task: this.expander.expand(onSuccess.task, ctx as never),
+      expand: (value) => this.expander.expand(value, ctx as never),
+      iteration,
+      emit,
+    });
   }
 
   private async guards(

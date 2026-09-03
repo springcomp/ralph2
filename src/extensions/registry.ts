@@ -23,6 +23,10 @@ export interface TriggerRegistration extends ExtensionDocumentation {
   callback: import("./types.js").TriggerCallback;
 }
 
+export interface MessageRegistration extends ExtensionDocumentation {
+  callback: import("./types.js").MessageCallback;
+}
+
 export interface CircuitBreakerRegistration extends ExtensionDocumentation {
   callback: import("./types.js").CircuitBreakerCallback;
 }
@@ -36,6 +40,7 @@ export interface TemplateRegistration {
   predicates?: readonly PredicateRegistration[];
   producers?: readonly ProducerRegistration[];
   triggers?: readonly TriggerRegistration[];
+  messages?: readonly MessageRegistration[];
   circuitBreakers?: readonly CircuitBreakerRegistration[];
   continuationLowerings?: readonly ContinuationLowering[];
   triggerLowerings?: readonly TriggerLowering[];
@@ -53,6 +58,7 @@ export interface ExtensionRegistry {
   templates: readonly TemplateRegistration[];
   producers: readonly ProducerRegistration[];
   triggers: readonly TriggerRegistration[];
+  messages: readonly MessageRegistration[];
   circuitBreakers: readonly CircuitBreakerRegistration[];
   continuationLowerings: readonly ContinuationLowering[];
   triggerLowerings: readonly TriggerLowering[];
@@ -62,6 +68,7 @@ export interface ExtensionRegistry {
   template(name: string): TemplateRegistration | undefined;
   producer(name: string): ProducerRegistration | undefined;
   trigger(name: string): TriggerRegistration | undefined;
+  message(name: string): MessageRegistration | undefined;
   circuitBreaker(name: string): CircuitBreakerRegistration | undefined;
   continuationLowering(name: string): ContinuationLowering | undefined;
   triggerLowering(name: string): TriggerLowering | undefined;
@@ -71,6 +78,7 @@ export interface ExtensionRegistry {
 import { TriggerWorkSource } from "../config/lowering/worksource.js";
 import type { CoreContext, Guard } from "../core/plan.js";
 import { scheduleTaskAction } from "./actions/schedule-task.js";
+import { addTaskMessage } from "./messages/add-task.js";
 import { noProgressCircuitBreaker } from "./circuit-breakers/no-progress.js";
 import { repeatedFailureSignatureCircuitBreaker } from "./circuit-breakers/repeated-failure-signature.js";
 import { acceptedExitCodePredicate } from "./predicates/accepted-exit-code.js";
@@ -85,6 +93,8 @@ import type {
 } from "./types.js";
 
 const actions: readonly ActionRegistration[] = [scheduleTaskAction];
+
+const messages: readonly MessageRegistration[] = [addTaskMessage];
 
 const predicates: readonly PredicateRegistration[] = [
   fileExistsPredicate,
@@ -172,6 +182,7 @@ export function createExtensionRegistry(
     templates?: readonly TemplateRegistration[];
     producers?: readonly ProducerRegistration[];
     triggers?: readonly TriggerRegistration[];
+    messages?: readonly MessageRegistration[];
     circuitBreakers?: readonly CircuitBreakerRegistration[];
     continuationLowerings?: readonly ContinuationLowering[];
     triggerLowerings?: readonly TriggerLowering[];
@@ -197,6 +208,11 @@ export function createExtensionRegistry(
     ...registeredTemplates.flatMap((t) => t.triggers ?? []),
     ...(extra.triggers ?? []),
   ];
+  const registeredMessages = [
+    ...messages,
+    ...registeredTemplates.flatMap((t) => t.messages ?? []),
+    ...(extra.messages ?? []),
+  ];
   const registeredCircuitBreakers = [
     ...builtinCircuitBreakers,
     ...registeredTemplates.flatMap((t) => t.circuitBreakers ?? []),
@@ -221,6 +237,7 @@ export function createExtensionRegistry(
   assertUnique("template", registeredTemplates);
   assertUnique("producer", registeredProducers);
   assertUnique("trigger", registeredTriggers);
+  assertUnique("message", registeredMessages);
   assertUnique("circuitBreaker", registeredCircuitBreakers);
   const registeredContinuationLowerings = [
     ...continuationLowerings,
@@ -285,6 +302,7 @@ export function createExtensionRegistry(
     templates: registeredTemplates,
     producers: registeredProducers,
     triggers: registeredTriggers,
+    messages: registeredMessages,
     circuitBreakers: registeredCircuitBreakers,
     continuationLowerings: registeredContinuationLowerings,
     triggerLowerings: registeredTriggerLowerings,
@@ -294,6 +312,7 @@ export function createExtensionRegistry(
     template: (name) => find(registeredTemplates, name),
     producer: (name) => find(registeredProducers, name),
     trigger: (name) => find(registeredTriggers, name),
+    message: (name) => find(registeredMessages, name),
     circuitBreaker: (name) => find(registeredCircuitBreakers, name),
     continuationLowering: (name) => find(registeredContinuationLowerings, name),
     triggerLowering: (name) => find(registeredTriggerLowerings, name),
