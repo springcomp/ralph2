@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { Task, TaskDocumentReader } from "../../src/core/task.js";
 import { taskAppearsTrigger } from "../../src/extensions/templates/blueprint/task-appears.js";
 import type { TriggerContext } from "../../src/extensions/types.js";
@@ -29,6 +29,21 @@ const context = (
   }) as TriggerContext;
 
 describe("taskAppearsTrigger", () => {
+  it("emits a waiting status line once before polling", async () => {
+    const emit = vi.fn(async () => undefined);
+    await taskAppearsTrigger.callback(
+      context(
+        { getFirstUncheckedTask: async () => task },
+        { emit, expand: (value) => value.replace("{SOURCE}", "queue.md") },
+      ),
+    );
+    expect(emit).toHaveBeenCalledTimes(1);
+    expect(emit).toHaveBeenCalledWith({
+      type: "stage.trigger",
+      message: "Waiting for new tasks in queue.md",
+    });
+  });
+
   it("fires immediately when an unchecked task is present", async () => {
     const signal = await taskAppearsTrigger.callback(
       context({ getFirstUncheckedTask: async () => task }),

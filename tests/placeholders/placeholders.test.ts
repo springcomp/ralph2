@@ -40,6 +40,7 @@ describe("PlaceholderRegistry", () => {
       "ITERATION",
       "ITERATION:000",
       "WORKSPACE",
+      "SOURCE",
     ]);
   });
 });

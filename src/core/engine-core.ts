@@ -48,7 +48,7 @@ export class CoreEngine {
           return this.result("canceled", "Canceled.", iteration - 1, events);
         let task: Task | null;
         try {
-          task = await plan.source.pull(iteration);
+          task = await plan.source.pull(iteration, emit);
         } catch (error) {
           if (this.message(error).startsWith("Trigger '")) {
             await emit({

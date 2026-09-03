@@ -39,7 +39,11 @@ export const taskAppearsTrigger: TriggerRegistration = {
       description: "Poll cadence (e.g. `5s`, `2m`). Defaults to 5 seconds.",
     },
   ],
-  callback: async ({ pollIntervalMs, observedSource, signal }) => {
+  callback: async ({ pollIntervalMs, observedSource, signal, expand, emit }) => {
+    await emit({
+      type: "stage.trigger",
+      message: expand("Waiting for new tasks in {SOURCE}"),
+    });
     while (!signal?.aborted) {
       let task = null;
       try {

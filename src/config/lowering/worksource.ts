@@ -1,6 +1,8 @@
 import type { CoreContext, WorkSource } from "../../core/plan.js";
 import type { Task, TaskDocumentReader, TaskSource } from "../../core/task.js";
+import type { WorkflowEvent } from "../../core/workflow-types.js";
 import type { ExtensionRegistry } from "../../extensions/registry.js";
+import { PlaceholderExpander } from "../../placeholders/placeholders.js";
 import { MarkdownTaskDocumentReader } from "../../task-source/markdown-task-source.js";
 import type { WorkflowPlan } from "../compiler.js";
 
@@ -41,9 +43,12 @@ export class ChainedWorkSource implements WorkSource {
   get completionStatus(): "complete" | "blocked" {
     return this.exhausted;
   }
-  async pull(iteration: number): Promise<Task | null> {
+  async pull(
+    iteration: number,
+    emit?: (event: WorkflowEvent) => Promise<void> | void,
+  ): Promise<Task | null> {
     while (this.index < this.sources.length) {
-      const task = await this.sources[this.index].pull(iteration);
+      const task = await this.sources[this.index].pull(iteration, emit);
       if (task) return task;
       this.index++;
     }
@@ -69,14 +74,17 @@ export class GeneratorWorkSource implements WorkSource {
   ) {}
   private initialPullCompleted = false;
 
-  async pull(iteration: number): Promise<Task | null> {
-    const task = await this.base.pull(iteration);
+  async pull(
+    iteration: number,
+    emit?: (event: WorkflowEvent) => Promise<void> | void,
+  ): Promise<Task | null> {
+    const task = await this.base.pull(iteration, emit);
     if (this.initialPullCompleted || iteration !== 1) return task;
     this.initialPullCompleted = true;
     if (task || this.seedTask === undefined) return task;
 
     await this.source.scheduleTask(this.seedTask);
-    return this.base.pull(iteration);
+    return this.base.pull(iteration, emit);
   }
   async afterTask(ctx: CoreContext): Promise<void> {
     const runtime = ctx as CoreContext & {
@@ -105,6 +113,7 @@ export class GeneratorWorkSource implements WorkSource {
 }
 
 export class TriggerWorkSource implements WorkSource {
+  private readonly expander = new PlaceholderExpander();
   constructor(
     private readonly inner: WorkSource,
     private readonly config: NonNullable<WorkflowPlan["trigger"]>,
@@ -116,8 +125,11 @@ export class TriggerWorkSource implements WorkSource {
   get completionStatus(): "complete" | "blocked" {
     return this.inner.completionStatus ?? "complete";
   }
-  async pull(iteration: number): Promise<Task | null> {
-    const task = await this.inner.pull(iteration);
+  async pull(
+    iteration: number,
+    emit?: (event: WorkflowEvent) => Promise<void> | void,
+  ): Promise<Task | null> {
+    const task = await this.inner.pull(iteration, emit);
     if (task) return task;
     const registration = this.extensions.trigger(this.config.kind);
     if (!registration)
@@ -129,13 +141,20 @@ export class TriggerWorkSource implements WorkSource {
       workspace: this.plan.workspace,
       taskSource: this.source,
       observedSource: this.observedSource,
-      expand: (v) => v,
+      expand: (v) =>
+        this.expander.expand(v, {
+          iteration,
+          workspace: this.plan.workspace,
+          source: this.config.source,
+        }),
       signal: undefined,
-      emit: async () => undefined,
+      emit: async (event) => {
+        await emit?.({ ...event, iteration });
+      },
     });
     if (!signal) return null;
     this.inner.reset?.();
-    return this.inner.pull(iteration);
+    return this.inner.pull(iteration, emit);
   }
 }
 

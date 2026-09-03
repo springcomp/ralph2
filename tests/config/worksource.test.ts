@@ -275,6 +275,34 @@ describe("GeneratorWorkSource", () => {
       "Trigger 'missing' is not registered.",
     );
   });
+
+  it("forwards a trigger's status line, stamping the iteration and resolving {SOURCE}", async () => {
+    const outerEmit = vi.fn(async () => undefined);
+    const src = new TriggerWorkSource(
+      { pull: async () => null } as WorkSource,
+      { kind: "waiter", source: "q.md", pollIntervalMs: 5 } as never,
+      fakeSource(),
+      { getFirstUncheckedTask: async () => null },
+      { workspace: "/ws" } as never,
+      {
+        trigger: () => ({
+          callback: async (ctx) => {
+            await ctx.emit({
+              type: "stage.trigger",
+              message: ctx.expand("Waiting for new tasks in {SOURCE}"),
+            });
+            return null;
+          },
+        }),
+      } as unknown as ExtensionRegistry,
+    );
+    expect(await src.pull(3, outerEmit)).toBeNull();
+    expect(outerEmit).toHaveBeenCalledWith({
+      type: "stage.trigger",
+      message: "Waiting for new tasks in q.md",
+      iteration: 3,
+    });
+  });
 });
 
 describe("GeneratorWorkSource scheduling", () => {

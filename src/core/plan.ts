@@ -1,5 +1,6 @@
 import type { ProcessResult } from "./process-runner.js";
 import type { Task } from "./task.js";
+import type { WorkflowEvent } from "./workflow-types.js";
 
 /** Values shared by steps, predicates, guards, and work-source hooks. */
 export interface CoreContext {
@@ -44,7 +45,10 @@ export interface Step {
 }
 
 export interface WorkSource {
-  pull(iteration: number): Promise<Task | null>;
+  pull(
+    iteration: number,
+    emit?: (event: WorkflowEvent) => Promise<void> | void,
+  ): Promise<Task | null>;
   afterTask?(ctx: CoreContext): Promise<void>;
   readonly completionStatus?: "complete" | "blocked";
   /** Message surfaced by the engine when `completionStatus` is `"blocked"`. */

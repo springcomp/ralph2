@@ -38,6 +38,9 @@ export interface PredicateContext {
 
 export type PredicateCallback = (context: PredicateContext) => Promise<boolean>;
 
+/** A trigger status event; the engine stamps the current iteration on it. */
+export type TriggerStatusEvent = Omit<ExtensionEvent, "iteration">;
+
 /**
  * A trigger is the outermost WorkSource: it decides when a workflow run should
  * (re)start. When the inner task/continuation sources are exhausted, the engine
@@ -58,10 +61,10 @@ export interface TriggerContext {
   taskSource: TaskSource;
   /** Reader bound to the document observed by this trigger. */
   observedSource: TaskDocumentReader;
-  /** Placeholder expansion bound to the current context. */
+  /** Placeholder expansion bound to the current context, e.g. `{SOURCE}`. */
   expand: (value: string) => string;
-  /** Emit a structured workflow event. */
-  emit: (event: ExtensionEvent) => Promise<void>;
+  /** Emit a status event, e.g. while waiting for new work to appear. */
+  emit: (event: TriggerStatusEvent) => Promise<void>;
   /** Cancellation signal; triggers must resolve promptly when aborted. */
   signal?: AbortSignal;
 }

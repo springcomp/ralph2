@@ -20,6 +20,8 @@ export interface PlaceholderContext {
   readonly progress?: string | null;
   readonly iteration: number;
   readonly workspace?: string | null;
+  /** Path to the document currently observed by the active trigger, if any. */
+  readonly source?: string | null;
 }
 
 export interface ConditionalArguments {
@@ -68,6 +70,11 @@ export const PlaceholderRegistry = Object.freeze({
       description: "The current iteration number padded to three digits.",
     },
     { name: "WORKSPACE", description: "The path to the workflow workspace." },
+    {
+      name: "SOURCE",
+      description:
+        "The path to the document currently observed by the active trigger.",
+    },
   ] as readonly PlaceholderDefinition[],
   names: new Set([
     "MODEL",
@@ -85,6 +92,7 @@ export const PlaceholderRegistry = Object.freeze({
     "ITERATION",
     "ITERATION:000",
     "WORKSPACE",
+    "SOURCE",
   ]),
   conditionalNames: new Set([
     "MODEL",
@@ -101,6 +109,7 @@ export const PlaceholderRegistry = Object.freeze({
     "PROGRESS",
     "ITERATION",
     "WORKSPACE",
+    "SOURCE",
   ]),
 });
 
@@ -123,6 +132,7 @@ export class PlaceholderExpander {
       ITERATION: String(context.iteration),
       "ITERATION:000": String(context.iteration).padStart(3, "0"),
       WORKSPACE: context.workspace ?? "",
+      SOURCE: context.source ?? "",
     };
     return value.replace(
       /\{([^}]+)\}/g,
